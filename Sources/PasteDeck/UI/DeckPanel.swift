@@ -50,6 +50,25 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
         self.preview = PreviewWindowController(model: model)
         super.init()
         model.onDismiss = { [weak self] immediately in self?.hide(immediately: immediately) }
+        // When the page stops editing it hands the keyboard back, or nothing
+        // would answer space and escape.
+        preview.onKeyboardReleased = { [weak self] in
+            guard let panel = self?.panel, panel.isVisible else { return }
+            panel.makeKey()
+        }
+        // Switching to another app ends the session: save the edit, take the
+        // deck and the page down together.
+        resignObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hide() }
+        }
+    }
+
+    deinit {
+        if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }
     }
 
     // MARK: - Presentation
@@ -145,7 +164,10 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        // Clicking away dismisses, like Spotlight.
+        // Clicking away dismisses, like Spotlight — except when the preview
+        // page has deliberately taken the keyboard to be edited. That's our own
+        // window, not the user leaving.
+        guard !model.isEditingPreview else { return }
         hide()
     }
 
@@ -169,6 +191,23 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let command = flags.contains(.command)
         let shift = flags.contains(.shift)
+
+        // While the page is being edited the text view owns every key. This
+        // monitor is app-wide, not window-scoped, so it has to stand down
+        // first — otherwise space would close the preview mid-sentence.
+        if model.isEditingPreview {
+            switch event.keyCode {
+            case 53: // escape — discard
+                model.cancelPreviewEdit()
+                return true
+            case 36, 76: // ⌘↩ saves; a bare ↩ is just a newline
+                guard command else { return false }
+                model.commitPreviewEdit()
+                return true
+            default:
+                return false
+            }
+        }
 
         // Let the inline "new category" field have the keyboard to itself.
         if model.isCreatingCategory, !command {
@@ -293,8 +332,19 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
             return true
 
         case "e":
-            // Edit a prompt, or promote anything else into one — both are the
-            // same intent: "I want to reuse this, with slots".
+            // With the page open, ⌘E edits what's on it. That's the nearer
+            // reading of "edit" when the content is right there in front of you.
+            if model.isPreviewingLarge {
+                if model.canEditSelected {
+                    model.beginPreviewEdit()
+                } else {
+                    model.showToast("\(model.selectedItem?.kind.displayName ?? "This") can't be edited")
+                }
+                return true
+            }
+
+            // Otherwise: edit a prompt, or promote anything else into one —
+            // both are the same intent, "I want to reuse this, with slots".
             guard let item = model.selectedItem else { return true }
             if item.kind == .prompt {
                 hide()

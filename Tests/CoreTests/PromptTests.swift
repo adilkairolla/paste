@@ -234,6 +234,22 @@ func runPromptTests() {
             }
         }
 
+        test("editing a prompt into a copy of another is refused") {
+            try Fixture.withTemporaryDirectory { directory in
+                let store = try ClipStore(directory: directory)
+                _ = try store.createPrompt(title: "One", body: "same body")
+                let second = try store.createPrompt(title: "Two", body: "different")
+
+                do {
+                    try store.updatePrompt(itemID: second.id, title: "One", body: "same body")
+                    fail("expected a duplicate error")
+                } catch ClipEditError.duplicate {
+                    // The original must survive untouched.
+                    expectEqual(try store.promptBody(itemID: second.id), "different")
+                }
+            }
+        }
+
         test("every starter prompt parses to the slots it advertises") {
             for starter in PromptLibrary.starters {
                 let template = PromptTemplate(body: starter.body)

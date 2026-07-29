@@ -11,6 +11,10 @@ struct LargePreviewView: View {
     @ObservedObject var model: DeckModel
     let item: ClipItem
 
+    @FocusState private var editorFocused: Bool
+
+    private var isEditing: Bool { model.isEditingPreview }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.space2) {
             header
@@ -26,9 +30,13 @@ struct LargePreviewView: View {
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.14))
+                .strokeBorder(isEditing ? Color.accentColor.opacity(0.6) : Color.primary.opacity(0.14),
+                              lineWidth: isEditing ? Theme.focusRing : 1)
         )
-        .onTapGesture { model.isPreviewingLarge = false }
+        // Only the chrome closes the page. Tapping the content starts an edit,
+        // which would be impossible if any click anywhere dismissed first.
+        .onTapGesture { if !isEditing { model.isPreviewingLarge = false } }
+        .onChange(of: isEditing) { _, editing in editorFocused = editing }
     }
 
     private var header: some View {
@@ -40,16 +48,76 @@ struct LargePreviewView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .lineLimit(1)
                 .truncationMode(.middle)
-            Spacer()
-            KeyCap(text: "space")
-            Text("close")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+            Spacer(minLength: Theme.space2)
+            headerHints
+        }
+    }
+
+    /// Says what the keys do *right now* — the page has two modes and no other
+    /// visible difference between them beyond the ring.
+    @ViewBuilder
+    private var headerHints: some View {
+        if isEditing {
+            HStack(spacing: Theme.space1) {
+                KeyCap(text: "⌘↩")
+                Text("save").font(.system(size: 10)).foregroundStyle(.tertiary)
+                KeyCap(text: "⎋")
+                Text("discard").font(.system(size: 10)).foregroundStyle(.tertiary)
+            }
+            .fixedSize()
+        } else {
+            HStack(spacing: Theme.space1) {
+                if item.kind.isEditable {
+                    KeyCap(text: "⌘E")
+                    Text("edit").font(.system(size: 10)).foregroundStyle(.tertiary)
+                }
+                KeyCap(text: "space")
+                Text("close").font(.system(size: 10)).foregroundStyle(.tertiary)
+            }
+            .fixedSize()
         }
     }
 
     @ViewBuilder
     private var content: some View {
+        if isEditing {
+            editor
+        } else {
+            readOnlyContent
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Clicking an image or a file list has nothing to edit, so
+                    // it falls back to the chrome's behaviour instead of
+                    // swallowing the click and doing nothing at all.
+                    if item.kind.isEditable {
+                        model.beginPreviewEdit()
+                    } else {
+                        model.isPreviewingLarge = false
+                    }
+                }
+        }
+    }
+
+    private var editor: some View {
+        TextEditor(
+            text: Binding(
+                get: { model.previewDraft ?? "" },
+                set: { model.previewDraft = $0 }
+            )
+        )
+        .font(.system(size: 12, design: item.kind == .code ? .monospaced : .default))
+        .scrollContentBackground(.hidden)
+        .focused($editorFocused)
+        .padding(Theme.space1)
+        .background(
+            RoundedRectangle(cornerRadius: Theme.radiusTile, style: .continuous)
+                .fill(Color.primary.opacity(0.05))
+        )
+        .onAppear { editorFocused = true }
+    }
+
+    @ViewBuilder
+    private var readOnlyContent: some View {
         switch item.kind {
         case .image:
             if let image = fullImage ?? model.thumbnail(for: item) {

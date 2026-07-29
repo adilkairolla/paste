@@ -39,6 +39,7 @@ enum PreviewRenderer {
                     model.selectedItemID = match.id
                 }
                 model.isPreviewingLarge = true
+                if CommandLine.arguments.contains("--edit") { model.beginPreviewEdit() }
             }
             // `--zone categories|search|items` so focus states can be eyeballed
             // without driving the real panel.

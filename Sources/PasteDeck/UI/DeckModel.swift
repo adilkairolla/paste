@@ -53,6 +53,10 @@ final class DeckModel: ObservableObject {
     @Published private(set) var stack: [ClipItem] = []
     /// Non-nil while a prompt's slots are being filled in.
     @Published var promptFill: PromptFill?
+    /// The in-flight text while the preview page is being edited. Nil means
+    /// the page is read-only — which is also what tells the preview window
+    /// whether it may take the keyboard away from the deck.
+    @Published var previewDraft: String?
     /// What ←/→/⇥ act on. The search field keeps the text cursor throughout, so
     /// typing always searches no matter which zone is active.
     @Published var focusZone: FocusZone = .items
@@ -153,6 +157,7 @@ final class DeckModel: ObservableObject {
         isCreatingCategory = false
         isPreviewingLarge = false
         promptFill = nil
+        previewDraft = nil
         // A stack is a single errand. Carrying one across openings would mean
         // the next ⏎ pastes something gathered minutes ago in another app.
         stack = []
@@ -428,6 +433,45 @@ final class DeckModel: ObservableObject {
 
     func promptBody(for item: ClipItem) -> String {
         ((try? store.promptBody(itemID: item.id)) ?? nil) ?? item.preview
+    }
+
+    // MARK: - Editing the preview page
+
+    var isEditingPreview: Bool { previewDraft != nil }
+
+    /// Only kinds whose content *is* plain text — see ``ClipKind/isEditable``.
+    var canEditSelected: Bool { selectedItem?.kind.isEditable ?? false }
+
+    func beginPreviewEdit() {
+        guard !isEditingPreview, let item = selectedItem, item.kind.isEditable else { return }
+        previewDraft = ((try? store.text(itemID: item.id)) ?? nil) ?? item.preview
+    }
+
+    /// Writes the draft back. Safe to call when nothing is being edited, which
+    /// is what lets closing the deck flush an edit without checking first.
+    func commitPreviewEdit() {
+        guard let draft = previewDraft, let item = selectedItem else { return }
+        previewDraft = nil
+
+        // Saving something byte-identical is a no-op, not a duplicate.
+        guard draft != (((try? store.text(itemID: item.id)) ?? nil) ?? item.preview) else { return }
+
+        do {
+            try store.updateText(itemID: item.id, text: draft)
+            reload(preserveSelection: true)
+            showToast("Saved")
+        } catch ClipEditError.duplicate {
+            showToast("An identical clipping already exists — edit not saved", for: 2.6)
+        } catch ClipEditError.empty {
+            showToast("A clipping can't be empty — edit not saved", for: 2.6)
+        } catch {
+            Log.error("edit failed: \(error)")
+            showToast("Couldn't save that edit", for: 2.6)
+        }
+    }
+
+    func cancelPreviewEdit() {
+        previewDraft = nil
     }
 
     func copySelected() {

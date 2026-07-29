@@ -9,11 +9,16 @@ import SwiftUI
 /// the deck is a 245 pt strip along the bottom of the screen, so anything drawn
 /// inside it is a letterbox no matter how it's laid out. Reading wants height.
 ///
-/// The panel never becomes key. The deck keeps the keyboard, so space, escape
-/// and the arrows go on working exactly as they do with the preview closed —
-/// and the deck's own resign-key dismissal isn't tripped by clicking the page.
+/// The panel refuses the keyboard while the page is read-only. The deck keeps
+/// it, so space, escape and the arrows go on working exactly as they do with
+/// the preview closed, and the deck's own resign-key dismissal isn't tripped by
+/// clicking the page. Editing is the one exception: a text view can't receive
+/// keystrokes in a window that can't become key, so `acceptsKeyboard` is
+/// flipped on for the duration and handed straight back afterwards.
 final class PreviewPanel: NSPanel {
-    override var canBecomeKey: Bool { false }
+    var acceptsKeyboard = false
+
+    override var canBecomeKey: Bool { acceptsKeyboard }
     override var canBecomeMain: Bool { false }
 
     init(contentRect: NSRect) {
@@ -40,17 +45,47 @@ final class PreviewPanel: NSPanel {
 final class PreviewWindowController {
     private let model: DeckModel
     private var panel: PreviewPanel?
-    private var observer: AnyCancellable?
+    private var observers: [AnyCancellable] = []
+
+    /// Called when editing finishes, so the deck can take the keyboard back.
+    var onKeyboardReleased: (() -> Void)?
 
     init(model: DeckModel) {
         self.model = model
-        // Driven entirely by the model flag, so every route into the preview —
+
+        // Driven entirely by the model flags, so every route into the preview —
         // space, a click, the strip emptying — lands in one place.
-        observer = model.$isPreviewingLarge
+        model.$isPreviewingLarge
             .removeDuplicates()
             .sink { [weak self] showing in
                 MainActor.assumeIsolated { showing ? self?.show() : self?.hide() }
             }
+            .store(in: &observers)
+
+        model.$previewDraft
+            .map { $0 != nil }
+            .removeDuplicates()
+            .sink { [weak self] editing in
+                MainActor.assumeIsolated { self?.setEditing(editing) }
+            }
+            .store(in: &observers)
+    }
+
+    /// Editing needs real keystrokes, which means real key-window status.
+    ///
+    /// The hand-over is deferred by one turn of the run loop on purpose. A
+    /// `@Published` publisher fires in `willSet`, so at this point the model
+    /// still reports the *old* value — and the deck's resign-key handler, which
+    /// asks exactly that question to decide whether the user is leaving, would
+    /// see "not editing" and dismiss the whole deck the moment the page took
+    /// focus.
+    private func setEditing(_ editing: Bool) {
+        guard let panel else { return }
+        panel.acceptsKeyboard = editing
+        DispatchQueue.main.async { [weak self] in
+            guard let self, panel.isVisible else { return }
+            editing ? panel.makeKey() : self.onKeyboardReleased?()
+        }
     }
 
     /// Picks the same screen the deck picks, and centres the page in the band
@@ -94,8 +129,11 @@ final class PreviewWindowController {
     }
 
     /// Closing the deck takes the page with it — a page with no deck behind it
-    /// would have no keyboard to close it.
+    /// would have no keyboard to close it. An edit still in flight is saved
+    /// rather than dropped: the text was typed on purpose, and losing it is
+    /// worse than a save nobody explicitly confirmed.
     func teardown() {
+        model.commitPreviewEdit()
         model.isPreviewingLarge = false
         hide()
     }

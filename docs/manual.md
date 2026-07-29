@@ -50,6 +50,8 @@ To start it automatically: **Settings ▸ General ▸ Start PasteDeck at login**
 | `⌘1`…`⌘9` | Paste the *n*-th clipping |
 | `⇧↩` | Add / remove the clipping from the stack |
 | `space` | Open the clipping as a page, with full metadata (arrows keep paging) |
+| `⌘E` (page open) | Edit the text on the page |
+| `⌘↩` / `⎋` (editing) | Save the edit / discard it |
 | `⌘P` | Pin (pinned items are never pruned) |
 | `⌘⌫` | Delete the clipping |
 | `⇥` / `⇧⇥` | Next / previous category |
@@ -63,6 +65,32 @@ To start it automatically: **Settings ▸ General ▸ Start PasteDeck at login**
 Type anything to search — the field has focus the moment the deck opens.
 Right-click a card for stacking, pinning, categories, *Save as Prompt*,
 *Copy as Plain Text*, *Open Link*, *Reveal in Finder*, and delete.
+
+### Editing a clipping
+
+Press `space` to open the page, then `⌘E` — or just click the text. `⌘↩` saves,
+`⎋` discards. Closing the deck mid-edit saves rather than dropping what you
+typed.
+
+Only kinds whose content *is* plain text can be rewritten: text, code, links and
+prompts. **Rich text is deliberately read-only** — its payload is RTF or HTML,
+and saving edited plain text over it would silently discard the formatting that
+makes pasting back into the originating app worth anything. Images, files and
+colours have no prose to edit.
+
+Saving rewrites the clipping in place, keeping its id, pins and categories, and
+replacing every stored representation with the new text. Everything derived
+gets recomputed: title, preview, search index, byte size, counts, a link's host,
+a code snippet's language, a prompt's slots.
+
+Two things stay put on purpose. The **kind never changes** — editing a note
+until it happens to look like code shouldn't move it to another tab under the
+cursor. And **`updated_at` is preserved**, so the card doesn't jump to the front
+of a strip you're reading; the deck sorts by when things were *copied*, and
+editing isn't copying.
+
+If an edit would make the clipping byte-identical to another one, it's refused
+with a message rather than failing on the unique content hash.
 
 ### Stacking
 
@@ -248,6 +276,13 @@ scripts/                   .app bundler, icon generator
 - **Empty zones aren't reachable.** ↑ / ↓ cycle the search field, category bar
   and card strip, but the strip drops out of the cycle when it's empty rather
   than becoming a dead end that swallows the cursor and shows no ring anywhere.
+- **The preview borrows the keyboard, briefly.** A text view can't receive
+  keystrokes in a window that can't become key, so editing flips the preview
+  panel's `canBecomeKey` on and hands it straight back on save or cancel. The
+  deck's click-away dismissal has to ignore *that* resign — it's our own window,
+  not the user leaving — and the hand-over is deferred one run-loop turn because
+  `@Published` fires in `willSet`, so the flag the dismissal checks hasn't
+  landed yet at the moment the publisher runs.
 - **One colour means focus.** The accent ring marks whatever the arrows are
   steering — a card, a category chip, or the search field — and dims on the
   other two. Category tints say *which filter*; the accent says *where you are*.

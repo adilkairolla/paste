@@ -8,6 +8,7 @@ into whatever you were just doing.
 - Full history — text, links, code, colours, images, files
 - **Stack** several clippings with `⇧↩` and paste them as one labelled block
 - **Prompts** — reusable templates with `{{slots}}`, filled in before pasting
+- Press `space` for a full page, and `⌘E` to edit the clipping in place
 - Shows which app each clipping came from, and its metadata
 - Full-text search across everything
 - Persistent categories, plus pinning

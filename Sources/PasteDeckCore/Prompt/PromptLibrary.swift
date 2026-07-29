@@ -119,6 +119,12 @@ public extension ClipStore {
     func updatePrompt(itemID: Int64, title: String, body: String, now: Date = Date()) throws {
         let clip = PromptLibrary.newClip(title: title, body: body, now: now)
 
+        // Same unique content hash as everything else, so editing one prompt
+        // into an exact copy of another has to be caught before the write.
+        if let clash = try existingItemID(forHash: clip.contentHash), clash != itemID {
+            throw ClipEditError.duplicate
+        }
+
         try database.transaction { connection in
             try connection.run(
                 """
