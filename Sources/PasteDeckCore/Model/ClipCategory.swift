@@ -45,6 +45,10 @@ public enum ClipFilter: Equatable, Hashable, Sendable {
     case pinned
     case kinds(Set<ClipKind>)
     case category(Int64)
+    /// The prompt library. Kept as its own case rather than `.kinds([.prompt])`
+    /// because every other view deliberately hides prompts, and one named case
+    /// is easier to keep honest than a set that must never appear elsewhere.
+    case prompts
 
     public static let text = ClipFilter.kinds([.text, .richText])
     public static let links = ClipFilter.kinds([.link])
@@ -84,6 +88,7 @@ public struct FilterTab: Identifiable, Equatable, Hashable, Sendable {
 
     public static let smartTabs: [FilterTab] = [
         FilterTab(id: "all", title: "All", symbolName: "square.grid.2x2", filter: .all),
+        FilterTab(id: "prompts", title: "Prompts", symbolName: "sparkles", colorName: "indigo", filter: .prompts),
         FilterTab(id: "pinned", title: "Pinned", symbolName: "pin", colorName: "orange", filter: .pinned),
         FilterTab(id: "text", title: "Text", symbolName: "text.alignleft", filter: .text),
         FilterTab(id: "links", title: "Links", symbolName: "link", colorName: "blue", filter: .links),

@@ -46,6 +46,35 @@ enum PreviewRenderer {
                 }
             }
 
+            // `--tab <id>` picks a filter tab, e.g. `--tab prompts`.
+            if let index = CommandLine.arguments.firstIndex(of: "--tab"),
+               index + 1 < CommandLine.arguments.count {
+                model.selectedTabID = CommandLine.arguments[index + 1]
+                model.reload(resetSelection: true)
+            }
+
+            // `--stack N` gathers the first N stackable clippings.
+            if let index = CommandLine.arguments.firstIndex(of: "--stack"),
+               index + 1 < CommandLine.arguments.count,
+               let count = Int(CommandLine.arguments[index + 1]) {
+                for item in model.items.filter({ $0.kind.isStackable }).prefix(count) {
+                    model.toggleStack(item)
+                }
+                model.toast = nil
+            }
+
+            // `--fill` opens the slot sheet on the first prompt that has one.
+            if CommandLine.arguments.contains("--fill") {
+                model.selectedTabID = "prompts"
+                model.reload(resetSelection: true)
+                if let prompt = model.items.first(where: {
+                    !PromptTemplate(body: model.promptBody(for: $0)).userVariables.isEmpty
+                }) {
+                    model.selectedItemID = prompt.id
+                    model.paste(prompt)
+                }
+            }
+
             let view = ZStack {
                 Color(nsColor: .underPageBackgroundColor)
                 DeckView(model: model)
@@ -148,6 +177,10 @@ enum PreviewRenderer {
                      app: "Terminal", bundleID: "com.apple.Terminal", minutesAgo: 95)
         _ = try text("Meeting moved to Thursday 15:00 — the room is booked under “Deck review”.",
                      app: "Slack", bundleID: "com.tinyspeck.slackmacgap", minutesAgo: 140)
+
+        for starter in PromptLibrary.starters {
+            _ = try store.createPrompt(title: starter.title, body: starter.body, now: now)
+        }
 
         if let note { try store.setPinned(true, itemID: note.id) }
         if let code { try store.addItem(code.id, toCategory: snippets.id) }

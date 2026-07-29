@@ -191,9 +191,12 @@ public final class ClipStore: @unchecked Sendable {
 
             switch query.filter {
             case .all:
-                break
+                conditions.append(Self.notLibrary)
             case .pinned:
                 conditions.append("i.pinned = 1")
+                conditions.append(Self.notLibrary)
+            case .prompts:
+                conditions.append("i.kind = '\(ClipKind.prompt.rawValue)'")
             case .kinds(let kinds) where !kinds.isEmpty:
                 let placeholders = Array(repeating: "?", count: kinds.count).joined(separator: ",")
                 conditions.append("i.kind IN (\(placeholders))")
@@ -243,9 +246,17 @@ public final class ClipStore: @unchecked Sendable {
         try database.read { connection in
             switch filter {
             case .all:
-                return Int(try connection.scalar("SELECT COUNT(*) FROM items").flatMap(Self.asInt) ?? 0)
+                return Int(try connection.scalar(
+                    "SELECT COUNT(*) FROM items i WHERE \(Self.notLibrary)"
+                ).flatMap(Self.asInt) ?? 0)
             case .pinned:
-                return Int(try connection.scalar("SELECT COUNT(*) FROM items WHERE pinned = 1").flatMap(Self.asInt) ?? 0)
+                return Int(try connection.scalar(
+                    "SELECT COUNT(*) FROM items i WHERE i.pinned = 1 AND \(Self.notLibrary)"
+                ).flatMap(Self.asInt) ?? 0)
+            case .prompts:
+                return Int(try connection.scalar(
+                    "SELECT COUNT(*) FROM items WHERE kind = '\(ClipKind.prompt.rawValue)'"
+                ).flatMap(Self.asInt) ?? 0)
             case .kinds(let kinds):
                 guard !kinds.isEmpty else { return 0 }
                 let placeholders = Array(repeating: "?", count: kinds.count).joined(separator: ",")
@@ -431,6 +442,11 @@ public final class ClipStore: @unchecked Sendable {
     }
 
     // MARK: - Row decoding
+
+    /// Keeps authored items (prompts) out of the history views. They are their
+    /// own tab; mixing a template library into "everything you copied" buries
+    /// the history under things the user never copied at all.
+    static let notLibrary = "i.kind <> '\(ClipKind.prompt.rawValue)'"
 
     /// Every column except `thumbnail`, which is fetched separately.
     private static let listColumns = """

@@ -176,6 +176,25 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
             return false
         }
 
+        // Same for the prompt sheet: while it's up the deck's own keys would
+        // fight the text fields for ⏎, ⇥ and space.
+        if model.promptFill != nil, !command {
+            switch event.keyCode {
+            case 53: // escape
+                model.cancelPromptFill()
+                return true
+            case 36, 76: // return — ⇧⏎ inserts a newline instead of pasting
+                if shift { return false }
+                model.commitPromptFill()
+                return true
+            case 48: // tab
+                model.stepPromptField(by: shift ? -1 : 1)
+                return true
+            default:
+                return false
+            }
+        }
+
         // Space opens the large preview, but only when the user isn't typing a
         // search — otherwise they could never search for two words.
         if event.keyCode == 49, model.searchText.isEmpty, !command {
@@ -187,8 +206,12 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
 
         switch event.keyCode {
         case 53: // escape
+            // Unwind one layer at a time, innermost first, so escape never
+            // closes the deck while there's still something to back out of.
             if model.isPreviewingLarge {
                 model.isPreviewingLarge = false
+            } else if !model.stack.isEmpty {
+                model.clearStack()
             } else if !model.searchText.isEmpty {
                 model.searchText = ""
             } else {
@@ -197,7 +220,13 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
             return true
 
         case 36, 76: // return, keypad enter
-            model.pasteSelected()
+            // ⇧⏎ gathers instead of pasting: the stack is built by pressing it
+            // once per clipping, then ⏎ once to send them all.
+            if shift {
+                model.toggleStackSelected()
+            } else {
+                model.pasteSelected()
+            }
             return true
 
         case 123: // left — step backwards inside the focused zone
@@ -251,7 +280,24 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
             model.togglePinSelected()
             return true
         case "n":
-            model.isCreatingCategory = true
+            if shift {
+                hide()
+                PromptEditorWindowController.shared.show(model: model, editing: nil)
+            } else {
+                model.isCreatingCategory = true
+            }
+            return true
+
+        case "e":
+            // Edit a prompt, or promote anything else into one — both are the
+            // same intent: "I want to reuse this, with slots".
+            guard let item = model.selectedItem else { return true }
+            if item.kind == .prompt {
+                hide()
+                PromptEditorWindowController.shared.show(model: model, editing: item)
+            } else {
+                model.savePromptFromItem(item)
+            }
             return true
         case "f":
             return true // search already has focus

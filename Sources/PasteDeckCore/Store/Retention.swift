@@ -31,8 +31,14 @@ public struct PruneReport: Equatable, Sendable {
 
 /// Applies a ``RetentionPolicy`` and reclaims orphaned blobs.
 public struct Retention {
-    /// Items exempt from pruning: pinned, or filed into a user category.
-    private static let protectedClause = "(pinned = 1 OR id IN (SELECT item_id FROM item_categories))"
+    /// Items exempt from pruning: pinned, filed into a user category, or
+    /// authored rather than captured. A prompt the user wrote is not history
+    /// and expiring it after thirty days would be data loss, not tidying.
+    private static let protectedClause = """
+    (pinned = 1 \
+    OR kind = '\(ClipKind.prompt.rawValue)' \
+    OR id IN (SELECT item_id FROM item_categories))
+    """
 
     public static func prune(
         store: ClipStore,

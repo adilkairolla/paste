@@ -121,6 +121,7 @@ enum Theme {
         case "yellow": return .yellow
         case "green": return .green
         case "teal": return .teal
+        case "indigo": return .indigo
         case "gray": return .secondary
         default: return .accentColor
         }
@@ -135,6 +136,7 @@ enum Theme {
         case .color: return .pink
         case .image: return .purple
         case .file: return .teal
+        case .prompt: return .indigo
         case .other: return .secondary
         }
     }

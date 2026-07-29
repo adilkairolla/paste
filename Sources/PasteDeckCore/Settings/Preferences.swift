@@ -29,6 +29,7 @@ public final class Preferences {
         static let deckHeight = "ui.deckHeight"
         static let launchAtLogin = "system.launchAtLogin"
         static let hasCompletedFirstRun = "system.hasCompletedFirstRun"
+        static let hasSeededPrompts = "prompts.hasSeeded"
     }
 
     private func set(_ value: Any?, _ key: String) {
@@ -130,6 +131,13 @@ public final class Preferences {
     public var hasCompletedFirstRun: Bool {
         get { boolean(Key.hasCompletedFirstRun, default: false) }
         set { set(newValue, Key.hasCompletedFirstRun) }
+    }
+
+    /// Starter prompts are installed exactly once. Tracked here rather than by
+    /// counting rows, so deleting all of them stays deleted.
+    public var hasSeededPrompts: Bool {
+        get { boolean(Key.hasSeededPrompts, default: false) }
+        set { set(newValue, Key.hasSeededPrompts) }
     }
 }
 

@@ -48,24 +48,94 @@ To start it automatically: **Settings ▸ General ▸ Start PasteDeck at login**
 | `↩` | Paste into the app you came from |
 | `⌘C` | Copy without pasting |
 | `⌘1`…`⌘9` | Paste the *n*-th clipping |
+| `⇧↩` | Add / remove the clipping from the stack |
 | `space` | Large preview with full metadata |
 | `⌘P` | Pin (pinned items are never pruned) |
 | `⌘⌫` | Delete the clipping |
 | `⇥` / `⇧⇥`, `↑` `↓` | Next / previous category |
 | `⌘N` | New category |
+| `⌘⇧N` | New prompt |
+| `⌘E` | Edit the prompt, or save any clipping as one |
 | `⌘,` | Settings |
-| `esc` | Clear the search, then close |
+| `esc` | Close the preview, clear the stack, clear the search, then close |
 
 Type anything to search — the field has focus the moment the deck opens.
-Right-click a card for pinning, categories, *Copy as Plain Text*, *Open Link*,
-*Reveal in Finder*, and delete.
+Right-click a card for stacking, pinning, categories, *Save as Prompt*,
+*Copy as Plain Text*, *Open Link*, *Reveal in Finder*, and delete.
+
+### Stacking
+
+`⇧↩` gathers clippings instead of pasting one. Each gathered card turns indigo
+and gets a number; the bar at the bottom counts them and lists them in order.
+`↩` then pastes the whole stack as one labelled block:
+
+````
+### Text · Terminal
+TypeError: cannot read property 'id' of undefined
+
+### Code · Ghostty
+```swift
+let user = users.first { $0.id == target }
+```
+````
+
+The headings are the point. Three anonymous blobs pasted into a chat make the
+reader guess which is the error and which is the code; naming each part by kind
+and source app is the reason to stack rather than paste three times.
+
+Code blocks are fenced, with the language when it's known, and the fence grows
+past any backticks already in the clipping so a snippet can't break out of its
+own block. A stack of one pastes exactly like choosing that clipping normally
+would — no heading, no wrapper. Images can't be stacked; there's no text in them
+to contribute. The stack empties when the deck closes, since it describes one
+errand rather than a saved selection.
+
+### Prompts
+
+The **Prompts** tab is a library of text you wrote rather than copied. Write one
+with `⌘⇧N`, or press `⌘E` on any clipping to promote it into one.
+
+Wrap a word in double braces to make it a slot:
+
+```
+Rewrite the following for {{audience}}. Keep it {{tone}}.
+
+{{clipboard}}
+```
+
+Choosing that prompt opens a small sheet asking for *audience* and *tone*, with
+the rendered result updating underneath as you type. `⇥` moves between fields,
+`↩` pastes, `⎋` backs out. Two slot names fill themselves in and are never shown
+as fields:
+
+| Slot | Filled with |
+|---|---|
+| `{{clipboard}}` | Whatever is on the clipboard right now |
+| `{{stack}}` | Everything currently stacked, composed as above |
+
+Slot names are case-insensitive and may contain spaces, so `{{Target Audience}}`
+and `{{target audience}}` are one field. Anything between braces that isn't a
+well-formed name — `{{2 + 2}}`, an unclosed `{{` — is left exactly as written
+rather than silently vanishing on paste.
+
+`{{stack}}` is where the two features meet: gather an error, the function that
+threw it and the relevant docs with `⇧↩`, then choose your *Debug with context*
+prompt. One keystroke sends what used to be three copy-paste round trips.
+
+Prompts are ordinary rows in the same table, so search, categories and metadata
+all work on them. Two things differ: they're **never pruned**, whatever the
+retention settings say, and they're kept out of All, Pinned and the kind filters
+— a template library mixed into "everything you copied" buries the history.
+Four starter prompts are installed on first launch; delete them and they stay
+deleted.
 
 ### Categories
 
 Two kinds share the same bar:
 
-- **Smart** — All, Pinned, Text, Links, Images, Files, Code, Colors. These are
-  live filters over the whole history.
+- **Smart** — All, Prompts, Pinned, Text, Links, Images, Files, Code, Colors.
+  These are live filters over the whole history, except Prompts, which is the
+  library described above.
 - **Yours** — created with `⌘N` or the `+` chip. Filing a clipping into one makes
   it **permanent**: user categories and pins are exempt from every retention rule.
 

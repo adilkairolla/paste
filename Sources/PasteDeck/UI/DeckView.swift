@@ -26,6 +26,7 @@ struct DeckView: View {
                 .strokeBorder(Color.primary.opacity(0.12))
         )
         .overlay { largePreview }
+        .overlay { promptSheet }
         .overlay(alignment: .top) { toast }
         .onChange(of: model.focusRequest) { searchFocused = true }
         .onAppear { searchFocused = true }
@@ -156,6 +157,7 @@ struct DeckView: View {
         case .all: return "Nothing copied yet"
         case .pinned: return "No pinned clippings"
         case .category: return "This category is empty"
+        case .prompts: return "No prompts yet"
         case .kinds: return "No \(model.selectedTab.title.lowercased()) yet"
         }
     }
@@ -166,6 +168,7 @@ struct DeckView: View {
         case .all: return "Copy something and it will show up here"
         case .pinned: return "Select a clipping and press ⌘P to keep it forever"
         case .category: return "Right-click a clipping to file it here"
+        case .prompts: return "Press ⌘⇧N to write one, or ⌘E to reuse a clipping"
         case .kinds: return "Copy something of this type to see it here"
         }
     }
@@ -176,6 +179,17 @@ struct DeckView: View {
     private var largePreview: some View {
         if model.isPreviewingLarge, let item = model.selectedItem {
             LargePreviewView(model: model, item: item)
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+        }
+    }
+
+    @ViewBuilder
+    private var promptSheet: some View {
+        if let fill = model.promptFill {
+            PromptFillView(model: model, fill: fill)
+                // Keyed by item so switching prompts rebuilds the fields rather
+                // than leaving the previous prompt's focus behind.
+                .id(fill.item.id)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
         }
     }

@@ -17,7 +17,9 @@ struct DetailBarView: View {
 
     var body: some View {
         HStack(spacing: Theme.space3) {
-            if let item = model.selectedItem {
+            if !model.stack.isEmpty {
+                stackSummary
+            } else if let item = model.selectedItem {
                 details(for: item)
             } else {
                 Text("\(model.items.count) clippings")
@@ -29,12 +31,45 @@ struct DetailBarView: View {
 
             if needsAccessibility {
                 accessibilityNotice
+            } else if !model.stack.isEmpty {
+                stackHints
             } else {
                 shortcutHints
             }
         }
         .padding(.horizontal, Theme.panelPadding)
         .frame(height: Theme.detailHeight)
+    }
+
+    /// While a stack exists it replaces the selected item's details: ⏎ is about
+    /// to paste the stack, not the item under the cursor, and the bar has to
+    /// describe what will actually happen.
+    private var stackSummary: some View {
+        VStack(alignment: .leading, spacing: Theme.half) {
+            HStack(spacing: Theme.space15) {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.indigo)
+                Text(model.stack.count == 1 ? "1 clipping stacked" : "\(model.stack.count) clippings stacked")
+                    .font(.system(size: 12, weight: .medium))
+            }
+
+            Text(model.stack.enumerated().map { "\($0.offset + 1). \($0.element.title)" }
+                .joined(separator: "  ·  "))
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+
+    private var stackHints: some View {
+        HStack(spacing: Theme.space2) {
+            hint("↩", "paste stack")
+            hint("⇧↩", "add / remove")
+            hint("⎋", "clear")
+        }
+        .fixedSize()
     }
 
     private func details(for item: ClipItem) -> some View {
@@ -105,7 +140,9 @@ struct DetailBarView: View {
     private var shortcutHints: some View {
         HStack(spacing: Theme.space2) {
             hint("↩", "paste")
-            hint("⇥", "next")
+            // ⇥ is left out: the arrows already do it, and the stack is the
+            // one key here nobody would guess.
+            hint("⇧↩", "stack")
             hint("↑↓", zoneHint)
             hint("space", "preview")
             hint("⌘P", "pin")

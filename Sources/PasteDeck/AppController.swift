@@ -30,6 +30,9 @@ final class AppController {
         monitor.start()
         reloadHotKey()
         statusItem = StatusItemController(controller: self)
+        // Before the first reload, so the Prompts tab has something in it the
+        // very first time anyone opens the deck.
+        store.seedStarterPrompts(preferences: preferences)
         model.reload(resetSelection: true)
         scheduleMaintenance()
         runMaintenance()

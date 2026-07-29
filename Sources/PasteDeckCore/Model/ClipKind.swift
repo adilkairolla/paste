@@ -10,6 +10,8 @@ public enum ClipKind: String, Codable, CaseIterable, Sendable {
     case color
     case image
     case file
+    /// A reusable template the user wrote, not something they copied.
+    case prompt
     case other
 
     public var displayName: String {
@@ -21,6 +23,7 @@ public enum ClipKind: String, Codable, CaseIterable, Sendable {
         case .color: return "Color"
         case .image: return "Image"
         case .file: return "File"
+        case .prompt: return "Prompt"
         case .other: return "Other"
         }
     }
@@ -35,6 +38,7 @@ public enum ClipKind: String, Codable, CaseIterable, Sendable {
         case .color: return "paintpalette"
         case .image: return "photo"
         case .file: return "doc"
+        case .prompt: return "sparkles"
         case .other: return "questionmark.square.dashed"
         }
     }
@@ -42,8 +46,25 @@ public enum ClipKind: String, Codable, CaseIterable, Sendable {
     /// Kinds that are just "text with a flavour" — searched and previewed alike.
     public var isTextual: Bool {
         switch self {
-        case .text, .richText, .code, .link, .color: return true
+        case .text, .richText, .code, .link, .color, .prompt: return true
         case .image, .file, .other: return false
         }
     }
+
+    /// Whether a clipping of this kind can contribute to a composed stack.
+    ///
+    /// Images have no text to contribute, and a placeholder line in the middle
+    /// of a paste is worse than refusing outright. Prompts are excluded for a
+    /// different reason: a prompt is the thing a stack gets poured *into*, so
+    /// stacking one inverts the relationship.
+    public var isStackable: Bool {
+        switch self {
+        case .text, .richText, .code, .link, .color, .file: return true
+        case .image, .prompt, .other: return false
+        }
+    }
+
+    /// Authored by the user rather than captured from the pasteboard. Library
+    /// kinds are kept out of history views and exempt from pruning.
+    public var isLibrary: Bool { self == .prompt }
 }

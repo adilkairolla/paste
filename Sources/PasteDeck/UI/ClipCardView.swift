@@ -23,11 +23,28 @@ struct ClipCardView: View {
 
     private var isSteering: Bool { isSelected && model.focusZone == .items }
 
+    /// 1-based position in the stack, when this card is in it.
+    private var stackPosition: Int? { model.stackPosition(of: item) }
+
+    /// Two independent things need showing at once — where the cursor is, and
+    /// what's been gathered — so they get separate channels. The ring is only
+    /// ever about selection; being stacked shows as fill plus a numbered badge.
+    /// Sharing the ring made a selected, stacked card indistinguishable from a
+    /// stacked one the cursor had already left.
     private var ringColor: Color {
-        guard isSelected else { return Color.primary.opacity(0.08) }
-        // Dim the selection ring while the arrows are steering another zone,
-        // so there's never a question about what the keys will move.
-        return isSteering ? Color.accentColor : Color.accentColor.opacity(0.4)
+        if isSelected {
+            // Dim the selection ring while the arrows are steering another
+            // zone, so there's never a question about what the keys will move.
+            return isSteering ? Color.accentColor : Color.accentColor.opacity(0.4)
+        }
+        return stackPosition == nil ? Color.primary.opacity(0.08) : Color.indigo.opacity(0.5)
+    }
+
+    private var ringWidth: CGFloat { isSelected ? Theme.focusRing : 1 }
+
+    private var fillColor: Color {
+        if stackPosition != nil { return Color.indigo.opacity(isSelected ? 0.28 : 0.18) }
+        return Color.primary.opacity(isSelected ? 0.12 : (isHovering ? 0.085 : 0.055))
     }
 
     var body: some View {
@@ -57,11 +74,11 @@ struct ClipCardView: View {
         .frame(width: Theme.cardWidth, height: Theme.cardHeight)
         .background(
             RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
-                .fill(Color.primary.opacity(isSelected ? 0.12 : (isHovering ? 0.085 : 0.055)))
+                .fill(fillColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous)
-                .strokeBorder(ringColor, lineWidth: isSelected ? Theme.focusRing : 1)
+                .strokeBorder(ringColor, lineWidth: ringWidth)
         )
         .contentShape(RoundedRectangle(cornerRadius: Theme.radiusCard, style: .continuous))
         .onHover { isHovering = $0 }
@@ -122,9 +139,32 @@ struct ClipCardView: View {
             linkContent
         case .code:
             textContent(font: .system(size: 10.5, design: .monospaced), lines: 3)
+        case .prompt:
+            promptContent
         default:
             textContent(font: .system(size: 11.5), lines: 3)
         }
+    }
+
+    /// Slots are drawn in the prompt accent so a template reads as a form to
+    /// fill in rather than text with stray punctuation.
+    private var promptContent: some View {
+        PromptTemplate(body: item.preview)
+            .segments
+            .reduce(Text(verbatim: "")) { partial, segment in
+                switch segment {
+                case .literal(let text):
+                    return partial + Text(verbatim: text)
+                case .slot(let name):
+                    return partial + Text(verbatim: "{{\(name)}}")
+                        .foregroundColor(.indigo)
+                        .fontWeight(.semibold)
+                }
+            }
+            .font(.system(size: 11.5))
+            .lineLimit(3)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private var imageContent: some View {
@@ -211,9 +251,13 @@ struct ClipCardView: View {
 
     private var footer: some View {
         HStack(spacing: Theme.space1) {
+            if let stackPosition {
+                stackBadge(stackPosition)
+            }
+
             Image(systemName: item.kind.symbolName)
                 .font(.system(size: 8, weight: .semibold))
-            Text(item.kind.displayName)
+            Text(footerLabel)
                 .font(.system(size: 9.5, weight: .medium))
 
             Spacer(minLength: Theme.half)
@@ -235,6 +279,28 @@ struct ClipCardView: View {
         .foregroundStyle(Theme.accent(for: item.kind))
     }
 
+    /// A prompt's slot count is more use than the word "Prompt" repeated on
+    /// every card in the tab.
+    private var footerLabel: String {
+        guard item.kind == .prompt else { return item.kind.displayName }
+        let count = item.metadata.promptVariables?.count ?? 0
+        switch count {
+        case 0: return "No slots"
+        case 1: return "1 slot"
+        default: return "\(count) slots"
+        }
+    }
+
+    /// The card's place in the composed paste — the same number the detail bar
+    /// counts up to.
+    private func stackBadge(_ number: Int) -> some View {
+        Text("\(number)")
+            .font(.system(size: 8, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: 13, height: 13)
+            .background(Circle().fill(Color.indigo))
+    }
+
     // MARK: Context menu
 
     @ViewBuilder
@@ -244,16 +310,36 @@ struct ClipCardView: View {
             model.selectedItemID = item.id
             model.copySelected()
         }
-        if item.kind != .text, model.pasteService.plainText(for: item) != nil {
+
+        if item.kind.isStackable {
+            Button(stackPosition == nil ? "Add to Stack" : "Remove from Stack") {
+                model.toggleStack(item)
+            }
+        }
+
+        Divider()
+        if item.kind == .prompt {
+            Button("Edit Prompt…") {
+                model.dismiss(immediately: true)
+                PromptEditorWindowController.shared.show(model: model, editing: item)
+            }
+        } else {
+            Button("Save as Prompt") { model.savePromptFromItem(item) }
+        }
+        if item.kind != .text, item.kind != .prompt, model.pasteService.plainText(for: item) != nil {
             Button("Copy as Plain Text") {
                 model.pasteService.copyPlainText(for: item)
                 model.dismiss(immediately: true)
             }
         }
         Divider()
-        Button(item.isPinned ? "Unpin" : "Pin") {
-            model.selectedItemID = item.id
-            model.togglePinSelected()
+        // Prompts are already exempt from pruning, so pinning one would be a
+        // switch that does nothing.
+        if item.kind != .prompt {
+            Button(item.isPinned ? "Unpin" : "Pin") {
+                model.selectedItemID = item.id
+                model.togglePinSelected()
+            }
         }
         if !model.categories.isEmpty {
             Menu("Categories") {

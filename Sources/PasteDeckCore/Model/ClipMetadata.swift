@@ -27,6 +27,10 @@ public struct ClipMetadata: Codable, Equatable, Sendable {
     // Color
     public var colorHex: String?
 
+    /// Slot names found in a prompt's body, cached so the deck can badge a card
+    /// without re-parsing the template for every frame.
+    public var promptVariables: [String]?
+
     /// Every uniform type identifier the original pasteboard offered.
     public var utis: [String]?
 
@@ -59,6 +63,9 @@ public struct ClipMetadata: Codable, Equatable, Sendable {
         if let fileCount { pairs.append(("Files", fileCount.formatted())) }
         if let fileTotalBytes { pairs.append(("Total", ByteFormat.string(fileTotalBytes))) }
         if let colorHex { pairs.append(("Hex", colorHex.uppercased())) }
+        if let promptVariables, !promptVariables.isEmpty {
+            pairs.append(("Slots", promptVariables.joined(separator: ", ")))
+        }
         return pairs
     }
 }

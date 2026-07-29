@@ -64,7 +64,32 @@ final class PasteService {
             Log.error("paste aborted: nothing could be written to the pasteboard")
             return
         }
+        deliver(to: application, autoPaste: autoPaste)
+    }
 
+    /// Puts freshly composed text — a filled prompt, or a stack of clippings —
+    /// on the pasteboard and pastes it. There's no stored item behind this, so
+    /// nothing is marked as used and no payloads are restored.
+    func pasteText(_ text: String, into application: NSRunningApplication?, autoPaste: Bool) {
+        copyText(text)
+        deliver(to: application, autoPaste: autoPaste)
+    }
+
+    func copyText(_ text: String) {
+        // Built as one NSPasteboardItem so the internal marker is declared
+        // alongside the text rather than bolted on after the fact.
+        let entry = NSPasteboardItem()
+        entry.setData(Data(text.utf8), forType: NSPasteboard.PasteboardType(UTI.plainText))
+        entry.setData(Data([1]), forType: NSPasteboard.PasteboardType(UTI.internalMarker))
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects([entry])
+        monitor?.ignoreNextChange(changeCount: pasteboard.changeCount)
+    }
+
+    /// Hands focus back and, when allowed, presses ⌘V.
+    private func deliver(to application: NSRunningApplication?, autoPaste: Bool) {
         guard autoPaste, Permissions.isAccessibilityTrusted else {
             Log.info("copy-only paste (autoPaste=\(autoPaste), trusted=\(Permissions.isAccessibilityTrusted))")
             application?.activate()

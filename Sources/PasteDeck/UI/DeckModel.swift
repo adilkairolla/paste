@@ -11,6 +11,26 @@ enum FocusZone: CaseIterable {
     case items
 }
 
+/// A prompt waiting for its slots to be filled before it can be pasted.
+///
+/// Built-in slots are resolved when this is created, so the sheet only ever
+/// shows fields the user actually has to type into.
+struct PromptFill: Equatable {
+    var item: ClipItem
+    var template: PromptTemplate
+    /// Keyed by ``PromptTemplate/Variable/name``.
+    var values: [String: String]
+    /// Which field ⇥ will leave next.
+    var focusedName: String?
+
+    var fields: [PromptTemplate.Variable] { template.userVariables }
+
+    var rendered: String { template.rendered(with: values) }
+
+    /// Built-in slots that were filled in automatically, for the sheet's footer.
+    var resolvedBuiltIns: [PromptTemplate.Variable] { template.variables.filter(\.isBuiltIn) }
+}
+
 /// State behind the deck window: what's on screen, what's selected, and every
 /// action the UI can take.
 @MainActor
@@ -27,6 +47,12 @@ final class DeckModel: ObservableObject {
     @Published var newCategoryName = ""
     /// Space toggles a full-height look at the selected clipping.
     @Published var isPreviewingLarge = false
+    /// Clippings gathered with ⇧⏎, in the order they were added. Held as whole
+    /// items rather than ids so switching tabs or searching can't dissolve a
+    /// stack the user is halfway through building.
+    @Published private(set) var stack: [ClipItem] = []
+    /// Non-nil while a prompt's slots are being filled in.
+    @Published var promptFill: PromptFill?
     /// What ←/→/⇥ act on. The search field keeps the text cursor throughout, so
     /// typing always searches no matter which zone is active.
     @Published var focusZone: FocusZone = .items
@@ -117,6 +143,10 @@ final class DeckModel: ObservableObject {
         isAccessibilityTrusted = Permissions.isAccessibilityTrusted
         isCreatingCategory = false
         isPreviewingLarge = false
+        promptFill = nil
+        // A stack is a single errand. Carrying one across openings would mean
+        // the next ⏎ pastes something gathered minutes ago in another app.
+        stack = []
         focusZone = .items
         searchText = ""
         focusRequest += 1
@@ -185,30 +215,204 @@ final class DeckModel: ObservableObject {
         onDismiss?(immediately)
     }
 
+    /// ⏎. A non-empty stack outranks the cursor: gathering clippings is a
+    /// deliberate act, and pasting just the selected one instead would throw
+    /// the gathering away silently.
     func pasteSelected() {
+        if !stack.isEmpty {
+            pasteStack()
+            return
+        }
         guard let item = selectedItem else { return }
         paste(item)
     }
 
     func paste(_ item: ClipItem) {
-        let wantsAutoPaste = preferences.pasteAutomatically
-        isAccessibilityTrusted = Permissions.isAccessibilityTrusted
-
-        // Without Accessibility the ⌘V never arrives, and silently copying
-        // instead reads as "Enter does nothing". Stay open and say so.
-        if wantsAutoPaste, !isAccessibilityTrusted {
-            _ = pasteService.copyToPasteboard(item: item)
-            showToast("Copied — but macOS won't let PasteDeck press ⌘V yet. Grant Accessibility below.", for: 3.4)
-            Log.error("paste blocked: AXIsProcessTrusted() == false")
-            if !hasPromptedForAccessibility {
-                hasPromptedForAccessibility = true
-                Permissions.requestAccessibility()
+        // A prompt isn't pasteable text until its slots are resolved.
+        if item.kind == .prompt {
+            guard let fill = makeFill(for: item) else {
+                showToast("This prompt's text couldn't be read")
+                return
+            }
+            if fill.fields.isEmpty {
+                try? store.markUsed(itemID: item.id)
+                pasteComposed(fill.rendered)
+            } else {
+                promptFill = fill
             }
             return
         }
 
+        guard !isBlockedByAccessibility(copying: { [pasteService] in
+            _ = pasteService.copyToPasteboard(item: item)
+        }) else { return }
+
         dismiss(immediately: true)
-        pasteService.paste(item: item, into: targetApplication, autoPaste: wantsAutoPaste)
+        pasteService.paste(item: item, into: targetApplication, autoPaste: preferences.pasteAutomatically)
+    }
+
+    /// Pastes text that has no stored item behind it — a filled prompt, or a
+    /// composed stack.
+    func pasteComposed(_ text: String) {
+        guard !text.isEmpty else { return }
+
+        guard !isBlockedByAccessibility(copying: { [pasteService] in
+            pasteService.copyText(text)
+        }) else { return }
+
+        dismiss(immediately: true)
+        pasteService.pasteText(text, into: targetApplication, autoPaste: preferences.pasteAutomatically)
+    }
+
+    /// Without Accessibility the ⌘V never arrives, and silently copying instead
+    /// reads as "Enter does nothing". Copy anyway, stay open, and say so.
+    private func isBlockedByAccessibility(copying copy: () -> Void) -> Bool {
+        isAccessibilityTrusted = Permissions.isAccessibilityTrusted
+        guard preferences.pasteAutomatically, !isAccessibilityTrusted else { return false }
+
+        copy()
+        showToast("Copied — but macOS won't let PasteDeck press ⌘V yet. Grant Accessibility below.", for: 3.4)
+        Log.error("paste blocked: AXIsProcessTrusted() == false")
+        if !hasPromptedForAccessibility {
+            hasPromptedForAccessibility = true
+            Permissions.requestAccessibility()
+        }
+        return true
+    }
+
+    // MARK: - Stack
+
+    /// 1-based position in the stack, or nil when the item isn't in it.
+    func stackPosition(of item: ClipItem) -> Int? {
+        stack.firstIndex { $0.id == item.id }.map { $0 + 1 }
+    }
+
+    func toggleStack(_ item: ClipItem) {
+        if let index = stack.firstIndex(where: { $0.id == item.id }) {
+            stack.remove(at: index)
+            showToast(stack.isEmpty ? "Stack cleared" : "Removed — \(stack.count) still stacked")
+            return
+        }
+        guard item.kind.isStackable else {
+            showToast(item.kind == .prompt
+                      ? "Prompts get filled in, not stacked — press ⏎ to use this one"
+                      : "\(item.kind.displayName.lowercased()) has no text to stack")
+            return
+        }
+        stack.append(item)
+        showToast("Stacked \(stack.count) — ⏎ pastes them together")
+    }
+
+    func toggleStackSelected() {
+        guard let item = selectedItem else { return }
+        toggleStack(item)
+    }
+
+    func clearStack() {
+        guard !stack.isEmpty else { return }
+        stack = []
+        showToast("Stack cleared")
+    }
+
+    /// The stack as one labelled block.
+    func composedStack() -> String {
+        StackComposer.compose(stack.compactMap { item in
+            text(of: item).map { StackComposer.Entry(item: item, text: $0) }
+        })
+    }
+
+    func pasteStack() {
+        let composed = composedStack()
+        guard !composed.isEmpty else {
+            showToast("Nothing in the stack could be turned into text")
+            return
+        }
+        for item in stack { try? store.markUsed(itemID: item.id) }
+        pasteComposed(composed)
+    }
+
+    /// Whatever text a clipping can contribute. Falls back through the stored
+    /// payload, then the kind's own fields, then the preview.
+    func text(of item: ClipItem) -> String? {
+        if let text = pasteService.plainText(for: item), !text.isEmpty { return text }
+        switch item.kind {
+        case .file: return item.metadata.filePaths?.joined(separator: "\n")
+        case .color: return item.metadata.colorHex ?? item.title
+        case .link: return item.metadata.url ?? item.preview
+        default: return item.preview.isEmpty ? nil : item.preview
+        }
+    }
+
+    // MARK: - Prompts
+
+    /// Reads a prompt's body and resolves its built-in slots, so the sheet only
+    /// shows fields the user has to type into.
+    private func makeFill(for item: ClipItem) -> PromptFill? {
+        guard let body = (try? store.promptBody(itemID: item.id)) ?? nil else { return nil }
+        let template = PromptTemplate(body: body)
+
+        var values: [String: String] = [:]
+        for variable in template.variables {
+            switch variable.builtIn {
+            case .clipboard: values[variable.name] = NSPasteboard.general.string(forType: .string) ?? ""
+            case .stack: values[variable.name] = composedStack()
+            case nil: values[variable.name] = ""
+            }
+        }
+
+        return PromptFill(
+            item: item,
+            template: template,
+            values: values,
+            focusedName: template.userVariables.first?.name
+        )
+    }
+
+    func commitPromptFill() {
+        guard let fill = promptFill else { return }
+        promptFill = nil
+        try? store.markUsed(itemID: fill.item.id)
+        pasteComposed(fill.rendered)
+    }
+
+    func cancelPromptFill() {
+        promptFill = nil
+    }
+
+    /// ⇥ inside the fill sheet, wrapping at both ends.
+    func stepPromptField(by offset: Int) {
+        guard var fill = promptFill, !fill.fields.isEmpty else { return }
+        let names = fill.fields.map(\.name)
+        let current = fill.focusedName.flatMap { names.firstIndex(of: $0) } ?? 0
+        fill.focusedName = names[(current + offset + names.count) % names.count]
+        promptFill = fill
+    }
+
+    /// Creates a prompt, or rewrites one in place when `replacing` is given.
+    func savePrompt(title: String, body: String, replacing item: ClipItem?) {
+        guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        if let item {
+            try? store.updatePrompt(itemID: item.id, title: title, body: body)
+        } else {
+            _ = try? store.createPrompt(title: title, body: body)
+        }
+        reload(preserveSelection: true)
+    }
+
+    /// "Save as Prompt" on an ordinary clipping — the usual way a prompt starts
+    /// life is as something you already pasted once.
+    func savePromptFromItem(_ item: ClipItem) {
+        guard let body = text(of: item), !body.isEmpty else {
+            showToast("There's no text here to save as a prompt")
+            return
+        }
+        _ = try? store.createPrompt(title: item.title, body: body)
+        showToast("Saved to Prompts")
+        reload(preserveSelection: true)
+    }
+
+    func promptBody(for item: ClipItem) -> String {
+        ((try? store.promptBody(itemID: item.id)) ?? nil) ?? item.preview
     }
 
     func copySelected() {
@@ -233,6 +437,9 @@ final class DeckModel: ObservableObject {
         guard let item = selectedItem, let index = selectedIndex else { return }
         try? store.delete(itemIDs: [item.id])
         thumbnailCache.removeObject(forKey: NSNumber(value: item.id))
+        // A deleted clipping can't contribute text any more, and leaving it in
+        // the stack would paste a hole.
+        stack.removeAll { $0.id == item.id }
         reload()
         // Keep the cursor where it was rather than jumping to the top.
         if !items.isEmpty {

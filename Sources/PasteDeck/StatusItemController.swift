@@ -33,6 +33,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(open)
         openItem = open
 
+        let newPrompt = NSMenuItem(title: "New Prompt…", action: #selector(createPrompt), keyEquivalent: "")
+        newPrompt.target = self
+        menu.addItem(newPrompt)
+
         menu.addItem(.separator())
 
         let pause = NSMenuItem(title: "Pause Recording", action: #selector(togglePause), keyEquivalent: "")
@@ -76,6 +80,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openDeck() {
         controller.toggleDeck()
+    }
+
+    @objc private func createPrompt() {
+        PromptEditorWindowController.shared.show(model: controller.model, editing: nil)
     }
 
     @objc private func togglePause() {
