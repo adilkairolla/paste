@@ -212,7 +212,7 @@ Everything is under `~/Library/Application Support/PasteDeck/`.
 
 ```sh
 make build    # compile every target
-make test     # 45 unit tests over the store, classifier and retention
+make test     # 84 unit tests: store, classifier, retention, prompts, editing
 make app      # assemble dist/PasteDeck.app
 make run      # build, replace the running copy, launch
 make icon     # regenerate Resources/AppIcon.icns
@@ -221,12 +221,23 @@ make icon     # regenerate Resources/AppIcon.icns
 Command Line Tools ship neither XCTest nor swift-testing, so the suite is a plain
 executable with a small harness in `Tests/CoreTests/Harness.swift`.
 
-Render the UI offscreen without launching anything:
+Render the UI offscreen without launching anything. The renderer seeds its own
+throwaway store, so nothing from your real history reaches the image — which is
+what makes these safe to commit as screenshots.
 
 ```sh
-swift run PasteDeck --render-preview /tmp/deck.png
-swift run PasteDeck --render-preview /tmp/large.png --large
+swift run PasteDeck --render-preview out.png                 # the deck
+swift run PasteDeck --render-preview out.png --tab prompts   # a filter tab
+swift run PasteDeck --render-preview out.png --stack 3       # stack mode
+swift run PasteDeck --render-preview out.png --search zzz    # the empty state
+swift run PasteDeck --render-preview out.png --zone search   # a focus ring
+swift run PasteDeck --render-preview out.png --large code    # the page
+swift run PasteDeck --render-preview out.png --large --edit  # editing it
+swift run PasteDeck --render-preview out.png --fill          # a prompt's slots
 ```
+
+`--fill` is the one exception: `{{clipboard}}` resolves against the real
+pasteboard, so check what's on it before using that one for a screenshot.
 
 ### Layout
 
