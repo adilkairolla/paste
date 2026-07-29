@@ -99,6 +99,9 @@ enum Theme {
     static let chipHeight: CGFloat = 6 * unit         // 24
     /// Inline tag next to a title, smaller than a chip you can click.
     static let badgeHeight: CGFloat = 4 * unit + half // 18
+    /// Key caps are a fixed box, never sized by the glyph inside them — see
+    /// ``KeyCap`` for why that mattered.
+    static let keyCapHeight: CGFloat = 4 * unit       // 16
     static let cardWidth: CGFloat = 58 * unit         // 232
     /// The one component with a real aspect ratio to argue about, so it gets
     /// the golden one: 232 ÷ φ = 143.4, and 144 is 36 units — a 0.4 % miss, the
@@ -265,18 +268,32 @@ struct Hairline: View {
 }
 
 /// A small key-cap style hint, e.g. ⌘V. The atom of the radius ladder.
+///
+/// The box is a fixed size and the glyph is centred in it. Both matter, for
+/// reasons that took a screenshot to see:
+///
+/// This used to be `design: .rounded` with vertical padding, so each cap sized
+/// itself from its own text. SF Rounded has no ⌘ ⇧ ↩ ⌫ ↑ ↓, so those caps fell
+/// back to the system font, picked up its line metrics, and came out a
+/// different height from the all-Latin ones like `space`. A row of them then
+/// centred at different heights and read as a ragged line with the glyphs
+/// wandering up and down. One font family for every cap, and a height nothing
+/// can push around, fixes both halves of that.
 struct KeyCap: View {
     let text: String
 
     var body: some View {
         Text(text)
-            .font(.system(size: Theme.small, weight: .medium, design: .rounded))
+            .font(.system(size: Theme.small, weight: .medium))
+            .lineLimit(1)
+            .foregroundStyle(.secondary)
             .padding(.horizontal, Theme.space15)
-            .padding(.vertical, Theme.half)
+            // Square at minimum, so a one-glyph cap is a key rather than a sliver.
+            .frame(minWidth: Theme.keyCapHeight)
+            .frame(height: Theme.keyCapHeight)
             .background(
                 RoundedRectangle(cornerRadius: Theme.radiusTile, style: .continuous)
                     .fill(Color.primary.opacity(0.08))
             )
-            .foregroundStyle(.secondary)
     }
 }
