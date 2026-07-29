@@ -1,0 +1,511 @@
+<title>PasteDeck — Card Gallery</title>
+
+<style>
+:root {
+  --ground:      #e8e9ee;
+  --surface:     #fdfdfe;
+  --surface-2:   #f2f3f7;
+  --line:        #d2d5de;
+  --line-strong: #b6bac6;
+  --ink:         #16181f;
+  --ink-2:       #5a5f6e;
+  --ink-3:       #888da0;
+  --accent:      #4b45d6;
+  --accent-soft: #4b45d61a;
+  --measure:     #c0564a;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --hue: 250;
+  --cardW: 232px;
+  --cardH: 268px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #121317; --surface: #1a1c22; --surface-2: #22242c;
+    --line: #2c2f38; --line-strong: #3d414d;
+    --ink: #e8eaf0; --ink-2: #a0a6b8; --ink-3: #6e7488;
+    --accent: #8d88ff; --accent-soft: #8d88ff1f; --measure: #e0897b;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #121317; --surface: #1a1c22; --surface-2: #22242c;
+  --line: #2c2f38; --line-strong: #3d414d;
+  --ink: #e8eaf0; --ink-2: #a0a6b8; --ink-3: #6e7488;
+  --accent: #8d88ff; --accent-soft: #8d88ff1f; --measure: #e0897b;
+}
+:root[data-theme="light"] {
+  --ground: #e8e9ee; --surface: #fdfdfe; --surface-2: #f2f3f7;
+  --line: #d2d5de; --line-strong: #b6bac6;
+  --ink: #16181f; --ink-2: #5a5f6e; --ink-3: #888da0;
+  --accent: #4b45d6; --accent-soft: #4b45d61a; --measure: #c0564a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 32px 28px 72px; }
+
+.head { border-bottom: 1px solid var(--line); padding-bottom: 22px; margin-bottom: 30px; }
+.head h1 { margin: 0; font-size: 27px; font-weight: 800; letter-spacing: -0.028em; }
+.head p { margin: 9px 0 0; max-width: 62ch; font-size: 13.5px; line-height: 1.6; color: var(--ink-2); }
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+section { margin-bottom: 46px; }
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.sec-head h2 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.015em; }
+.sec-note { margin: 0 0 18px; font-size: 13px; line-height: 1.6; color: var(--ink-2); max-width: 66ch; }
+
+.bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+.seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); }
+.seg button {
+  padding: 4px 10px; border: 0; border-radius: 5px; background: none;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+  color: var(--ink-2); cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px #0000001f; }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Specimens sit on a dark plate so the translucent card fills read true. */
+.plate {
+  padding: 26px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(120% 120% at 12% 0%, #4a3f7a 0%, #2b3a67 45%, #17181f 100%);
+}
+.plate[data-appearance="light"] {
+  background: radial-gradient(120% 120% at 12% 0%, #eef0f6 0%, #dfe3ee 55%, #cdd3e2 100%);
+}
+.specimens { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.specimen { display: flex; flex-direction: column; gap: 7px; }
+.specimen figcaption {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #ffffff8c;
+}
+.plate[data-appearance="light"] .specimen figcaption { color: #00000075; }
+
+/* ── The card ─────────────────────────────────────────────
+   Same construction as ClipCardView: header, flexible body,
+   footer. Treatments change which parts are present.
+   ─────────────────────────────────────────────────────── */
+.card {
+  --fg:     #f2f3f6;
+  --fg-2:   #a2a7b5;
+  --fg-3:   #7c8190;
+  --fill:   rgba(255, 255, 255, 0.055);
+  --fill-2: rgba(255, 255, 255, 0.105);
+  --hair:   rgba(255, 255, 255, 0.1);
+  --tint:   hsl(var(--hue) 82% 68%);
+
+  display: flex;
+  flex-direction: column;
+  width: var(--cardW);
+  height: var(--cardH);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--fill);
+  color: var(--fg);
+  overflow: hidden;
+  font-size: 12px;
+}
+.plate[data-appearance="light"] .card {
+  --fg: #191b22; --fg-2: #565c6b; --fg-3: #878da0;
+  --fill: rgba(255, 255, 255, 0.66);
+  --fill-2: rgba(255, 255, 255, 0.9);
+  --hair: rgba(0, 0, 0, 0.09);
+  --tint: hsl(var(--hue) 70% 48%);
+}
+
+.card[data-density="compact"] { height: 190px; font-size: 11.5px; }
+.card[data-state="selected"] { background: var(--fill-2); border-color: var(--tint); box-shadow: inset 0 0 0 1px var(--tint); }
+.card[data-state="hover"] { background: var(--fill-2); }
+
+.c-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px 6px; font-size: 11px; color: var(--fg-2); }
+.c-head .name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-head .age { margin-left: auto; font-size: 10px; color: var(--fg-3); }
+.c-head .pin { color: #f0a24b; }
+.c-head .kindglyph { color: var(--tint); font-size: 10px; }
+
+.appicon {
+  flex: none; width: 14px; height: 14px; border-radius: 3.5px;
+  display: grid; place-items: center;
+  font-size: 8px; font-weight: 700; color: #fff; text-shadow: 0 1px 1px #00000040;
+}
+
+.c-body { flex: 1; min-height: 0; padding: 0 10px; overflow: hidden; line-height: 1.42; }
+.c-body.mono { font-family: var(--font-mono); font-size: 11px; line-height: 1.5; white-space: pre-wrap; }
+.c-body .host { display: block; font-weight: 600; margin-bottom: 4px; }
+.c-body .url { font-size: 11px; color: var(--fg-2); word-break: break-all; }
+.c-body .file { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; font-size: 11px; }
+.c-body .file i { flex: none; width: 13px; height: 15px; border-radius: 2px; background: var(--fill-2); }
+.c-body .rich b { font-weight: 700; }
+.c-body .rich em { color: var(--tint); font-style: italic; }
+
+.thumb { width: 100%; height: 100%; border-radius: 6px; background: linear-gradient(135deg, #f9a03f, #d0559b 52%, #8b5cf6); }
+.thumb.fill { border-radius: 0; margin: 0 -10px; width: calc(100% + 20px); }
+.swatch { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; height: 100%; }
+.swatch i { width: 100%; height: 92px; border-radius: 9px; background: #3f7fd0; border: 1px solid #ffffff2e; }
+.swatch b { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; }
+
+.c-foot {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px;
+  background: rgba(127, 127, 127, 0.1);
+  font-size: 10px; font-weight: 500;
+  color: var(--tint);
+}
+.c-foot .cap { margin-left: auto; }
+.cap {
+  padding: 2px 5px; border-radius: 4px;
+  background: rgba(127, 127, 127, 0.2);
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--fg-2);
+}
+.folder { color: var(--tint); font-size: 9px; }
+
+/* Treatment B: no footer, kind sits in the header, badge floats. */
+.card[data-treatment="b"] { position: relative; }
+.card[data-treatment="b"] .c-foot { display: none; }
+.card[data-treatment="b"] .c-body { padding-bottom: 10px; }
+.card[data-treatment="b"] .float {
+  position: absolute; right: 8px; bottom: 8px;
+  padding: 2px 6px; border-radius: 5px;
+  background: rgba(20, 20, 24, 0.55);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-mono); font-size: 9.5px; color: #ffffffc4;
+}
+.card[data-treatment="a"] .float, .card[data-treatment="c"] .float { display: none; }
+
+/* Treatment C: accent spine instead of a footer. */
+.card[data-treatment="c"] { border-left: 3px solid var(--tint); }
+.card[data-treatment="c"] .c-foot { background: none; padding-top: 0; }
+.card[data-treatment="c"] .c-foot .cap { background: none; padding-right: 0; }
+
+/* Row form, for list layouts */
+.rowset { display: flex; flex-direction: column; gap: 2px; width: 320px; }
+.row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 7px;
+  font-size: 12px; color: #f2f3f6;
+}
+.plate[data-appearance="light"] .row { color: #191b22; }
+.row[data-state="selected"] { background: color-mix(in srgb, hsl(var(--hue) 82% 62%) 30%, transparent); }
+.row .txt { flex: 1; min-width: 0; }
+.row .txt b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .txt span { font-size: 10px; opacity: 0.6; }
+.row .age { font-size: 10px; opacity: 0.6; }
+
+/* ── Anatomy callouts ────────────────────────────────────── */
+.anatomy { display: flex; gap: 56px; flex-wrap: wrap; align-items: flex-start; }
+.anno { position: relative; }
+.anno .card { position: relative; z-index: 1; }
+.anno-line {
+  position: absolute; left: calc(var(--cardW) + 8px);
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--measure);
+  white-space: nowrap;
+}
+.anno-line::before { content: ""; width: 34px; border-top: 1px dashed var(--measure); }
+.anno-line b { font-weight: 400; color: var(--ink-2); }
+
+/* ── Notes grid ──────────────────────────────────────────── */
+.notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  margin-top: 20px;
+}
+.note { padding: 16px 18px; background: var(--surface); }
+.note h4 { margin: 0 0 7px; font-size: 12.5px; font-weight: 650; }
+.note p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
+.note code, .sec-note code {
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 1px 4px; border-radius: 4px; background: var(--surface-2); color: var(--ink);
+}
+.verdict {
+  display: inline-block; margin-bottom: 8px; padding: 2px 7px; border-radius: 999px;
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--accent-soft); color: var(--accent);
+}
+
+table.matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.matrix th, table.matrix td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.matrix th {
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 600;
+}
+table.matrix td:first-child { font-family: var(--font-mono); font-size: 11px; color: var(--ink); white-space: nowrap; }
+table.matrix td { color: var(--ink-2); line-height: 1.55; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table.matrix tr:last-child td { border-bottom: 0; }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <h1>Card gallery</h1>
+    <p>
+      Every clipping kind, every selection state, and three competing treatments of the same
+      card — drawn at 1&nbsp;pt&nbsp;=&nbsp;1&nbsp;px so what you see is the size it ships at.
+      The structure mirrors <code>ClipCardView</code>: a header, a flexible body that switches
+      on <code>ClipKind</code>, and a footer.
+    </p>
+  </header>
+
+  <div class="bar">
+    <span class="label">Global</span>
+    <div class="seg" role="group" aria-label="Appearance">
+      <button type="button" data-appearance="dark" aria-pressed="true">Dark</button>
+      <button type="button" data-appearance="light">Light</button>
+    </div>
+    <div class="seg" role="group" aria-label="Density">
+      <button type="button" data-density="comfortable" aria-pressed="true">Comfortable</button>
+      <button type="button" data-density="compact">Compact</button>
+    </div>
+    <div class="seg" role="group" aria-label="Card width">
+      <button type="button" data-width="196">196 pt</button>
+      <button type="button" data-width="232" aria-pressed="true">232 pt</button>
+      <button type="button" data-width="272">272 pt</button>
+    </div>
+    <div class="seg" role="group" aria-label="Accent hue">
+      <button type="button" data-hue="250" aria-pressed="true">Indigo</button>
+      <button type="button" data-hue="210">Blue</button>
+      <button type="button" data-hue="150">Green</button>
+      <button type="button" data-hue="20">Ember</button>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><h2>Anatomy</h2><span class="label">three fixed rows</span></div>
+    <p class="sec-note">
+      The header and footer are fixed height; the body takes the rest. That's why a card can
+      grow to any deck height without the type re-flowing — only the body clips.
+    </p>
+    <div class="plate" data-appearance="dark" id="anatomyPlate">
+      <div class="anatomy">
+        <div class="anno" id="anatomy"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Kinds</h2><span class="label">body switches on ClipKind</span></div>
+    <p class="sec-note">
+      Eight cases, each with a body view of its own. Text and code differ only by font; link,
+      file and colour earn bespoke layouts because their metadata is what you actually scan for.
+    </p>
+    <div class="plate" data-appearance="dark">
+      <div class="specimens" id="kinds"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>States</h2><span class="label">selection, pin, category</span></div>
+    <p class="sec-note">
+      Selection has to survive being seen at arm's length while you hold ⌘ — hence a filled
+      background <em>and</em> a 2&nbsp;pt accent ring, not one or the other.
+    </p>
+    <div class="plate" data-appearance="dark">
+      <div class="specimens" id="states"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Treatments</h2><span class="label">pick one</span></div>
+    <p class="sec-note">
+      Same content, three ideas about where the metadata belongs. All three are a small diff to
+      <code>ClipCardView</code> — the footer is one <code>HStack</code>.
+    </p>
+    <div class="plate" data-appearance="dark">
+      <div class="specimens" id="treatments"></div>
+    </div>
+    <div class="notes">
+      <div class="note">
+        <span class="verdict">A · shipped</span>
+        <h4>Footer bar</h4>
+        <p>Kind, category dot and the <code>⌘N</code> shortcut sit on a tinted strip. Most legible, and the shortcut is always in the same place — but it costs 28 pt of body height on every card.</p>
+      </div>
+      <div class="note">
+        <span class="verdict">B · lightest</span>
+        <h4>Floating badge</h4>
+        <p>Kind moves into the header as a glyph; the shortcut floats over the content on a blurred pill. Gives images and code the full card. Risk: the badge can land on a busy part of a screenshot.</p>
+      </div>
+      <div class="note">
+        <span class="verdict">C · fastest scan</span>
+        <h4>Accent spine</h4>
+        <p>A 3 pt coloured edge encodes kind before you read anything. Colour alone isn't accessible, so the footer label stays — just without its background.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Row form</h2><span class="label">for rail &amp; palette layouts</span></div>
+    <p class="sec-note">
+      The side rail and centre palette need a list line rather than a card. Same data, one third
+      the height — worth building as a second view rather than bending the card into it.
+    </p>
+    <div class="plate" data-appearance="dark">
+      <div class="rowset" id="rows"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>What each choice costs in SwiftUI</h2></div>
+    <div class="tablewrap">
+      <table class="matrix">
+        <thead>
+          <tr><th>Change</th><th>Where it lives</th><th>Effort</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Card width / radius</td><td><code>Theme.cardWidth</code>, <code>Theme.cardCorner</code></td><td>Constants. Free.</td></tr>
+          <tr><td>Density</td><td>Card height follows the panel; only paddings and <code>lineLimit</code> change</td><td>Two values plus a density enum in <code>Theme</code>.</td></tr>
+          <tr><td>Drop the footer (B)</td><td><code>ClipCardView.footer</code> → <code>.overlay(alignment:.bottomTrailing)</code></td><td>One view swapped for an overlay.</td></tr>
+          <tr><td>Accent spine (C)</td><td><code>.overlay(alignment:.leading)</code> with a 3 pt capsule</td><td>Three lines. Keep the text label for accessibility.</td></tr>
+          <tr><td>Row form</td><td>New <code>ClipRowView</code>; the deck picks a form per layout</td><td>A second small view — the model needs no change.</td></tr>
+          <tr><td>Thumbnail bleeds to the edge</td><td>Negative padding on the image body only</td><td>Cheap, but clip it or the corners look broken.</td></tr>
+          <tr><td>Accent hue</td><td>Currently <code>Color.accentColor</code> — the system tint</td><td>Only worth overriding if you want PasteDeck to ignore the user's macOS tint.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const CLIPS = {
+    code:  { app: "Xcode", tint: "#3b6ef5", kind: "Code", age: "2m", mono: true,
+             body: "func recentClippings(\n    limit: Int\n) throws -> [ClipItem] {\n    try store.items(\n        ClipQuery(limit: limit)\n    )\n}", sub: "Swift · 7 lines" },
+    text:  { app: "Notes", tint: "#f0b53f", kind: "Text", age: "24m",
+             body: "Ship the retention policy before the release. Pinned so it survives the nightly prune.", sub: "13 words" },
+    link:  { app: "Safari", tint: "#2b9cf0", kind: "Link", age: "6m",
+             host: "developer.apple.com", url: "https://developer.apple.com/documentation/appkit/nspasteboard", sub: "developer.apple.com" },
+    image: { app: "Preview", tint: "#7b62e8", kind: "Image", age: "11m", thumb: true, sub: "PNG · 1024 × 1024" },
+    file:  { app: "Finder", tint: "#4aa3e0", kind: "File", age: "1h",
+             files: ["quarterly-report.pdf", "deck-notes.md", "budget.numbers"], sub: "3 files · 4.1 MB" },
+    color: { app: "Figma", tint: "#e2554a", kind: "Color", age: "47m", swatch: "#3f7fd0", sub: "#3F7FD0" },
+    rich:  { app: "Mail", tint: "#3f8ae0", kind: "Rich Text", age: "3h", rich: true, sub: "styled · 22 words" },
+    other: { app: "Sketch", tint: "#8a8f9c", kind: "Other", age: "5h",
+             body: "com.bohemiancoding.sketch.v3\npublic.data", mono: true, sub: "2 formats" },
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const icon = (c) => `<i class="appicon" style="background:${c.tint}">${c.app[0]}</i>`;
+  const GLYPH = { Code: "⌘", Text: "≡", Link: "⚭", Image: "▣", File: "◈", Color: "◐", "Rich Text": "¶", Other: "◇" };
+
+  function body(c, opts = {}) {
+    if (c.thumb) return `<div class="c-body"><div class="thumb${opts.fill ? " fill" : ""}"></div></div>`;
+    if (c.swatch) return `<div class="c-body"><div class="swatch"><i style="background:${c.swatch}"></i><b>${c.sub}</b></div></div>`;
+    if (c.files) return `<div class="c-body">${c.files.map((f) => `<div class="file"><i></i>${f}</div>`).join("")}</div>`;
+    if (c.host) return `<div class="c-body"><span class="host">${c.host}</span><span class="url">${c.url}</span></div>`;
+    if (c.rich) return `<div class="c-body"><div class="rich"><b>Quarterly review</b> — the deck ships <em>Thursday</em>, pending one last pass on the retention copy.</div></div>`;
+    return `<div class="c-body${c.mono ? " mono" : ""}">${c.body}</div>`;
+  }
+
+  function card(c, o = {}) {
+    const treatment = o.treatment || "a";
+    return `<article class="card" data-state="${o.state || "default"}" data-treatment="${treatment}">
+      <div class="c-head">
+        ${icon(c)}<span class="name">${c.app}</span>
+        ${treatment === "b" ? `<span class="kindglyph">${GLYPH[c.kind] || "◇"}</span>` : ""}
+        ${o.pinned ? '<span class="pin">✦</span>' : ""}
+        <span class="age">${c.age}</span>
+      </div>
+      ${body(c, o)}
+      <div class="c-foot">
+        <span>${c.kind}</span>
+        ${o.filed ? '<span class="folder">▤</span>' : ""}
+        <span class="cap">⌘1</span>
+      </div>
+      <span class="float">⌘1</span>
+    </article>`;
+  }
+
+  const figure = (label, html) => `<figure class="specimen" style="margin:0">${html}<figcaption>${label}</figcaption></figure>`;
+
+  /* Anatomy — the card plus dimension callouts pinned to each row. */
+  $("anatomy").innerHTML = card(CLIPS.code) + `
+    <span class="anno-line" style="top: 14px"><b>header</b> · 28 pt · app icon, name, pin, age</span>
+    <span class="anno-line" style="top: 120px"><b>body</b> · flexible · switches on ClipKind</span>
+    <span class="anno-line" style="top: 246px"><b>footer</b> · 28 pt · kind, category, ⌘N</span>`;
+
+  $("kinds").innerHTML = Object.entries(CLIPS)
+    .map(([key, c]) => figure(key, card(c))).join("");
+
+  $("states").innerHTML = [
+    ["default", card(CLIPS.text)],
+    ["selected", card(CLIPS.text, { state: "selected" })],
+    ["hover", card(CLIPS.text, { state: "hover" })],
+    ["pinned", card(CLIPS.text, { pinned: true })],
+    ["filed + selected", card(CLIPS.text, { state: "selected", filed: true, pinned: true })],
+  ].map(([label, html]) => figure(label, html)).join("");
+
+  $("treatments").innerHTML = [
+    ["A · footer bar", card(CLIPS.image, { treatment: "a" })],
+    ["B · floating badge", card(CLIPS.image, { treatment: "b", fill: true })],
+    ["C · accent spine", card(CLIPS.image, { treatment: "c" })],
+    ["A · text", card(CLIPS.code, { treatment: "a" })],
+    ["B · text", card(CLIPS.code, { treatment: "b" })],
+    ["C · text", card(CLIPS.code, { treatment: "c" })],
+  ].map(([label, html]) => figure(label, html)).join("");
+
+  $("rows").innerHTML = Object.values(CLIPS).slice(0, 6).map((c, i) =>
+    `<div class="row" data-state="${i === 1 ? "selected" : "default"}">
+       ${icon(c)}
+       <span class="txt"><b>${(c.body || c.url || c.sub).split("\n")[0]}</b><span>${c.app} · ${c.sub}</span></span>
+       <span class="age">${c.age}</span>
+     </div>`).join("");
+
+  /* ── Global controls ─────────────────────────────────── */
+  function press(group, btn) {
+    document.querySelectorAll(`[${group}]`).forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  }
+
+  document.querySelectorAll("[data-appearance]").forEach((btn) => btn.addEventListener("click", () => {
+    press("data-appearance", btn);
+    document.querySelectorAll(".plate").forEach((p) => { p.dataset.appearance = btn.dataset.appearance; });
+  }));
+
+  document.querySelectorAll("[data-density]").forEach((btn) => btn.addEventListener("click", () => {
+    press("data-density", btn);
+    document.querySelectorAll(".card").forEach((c) => { c.dataset.density = btn.dataset.density; });
+  }));
+
+  document.querySelectorAll("[data-width]").forEach((btn) => btn.addEventListener("click", () => {
+    press("data-width", btn);
+    document.documentElement.style.setProperty("--cardW", btn.dataset.width + "px");
+  }));
+
+  document.querySelectorAll("[data-hue]").forEach((btn) => btn.addEventListener("click", () => {
+    press("data-hue", btn);
+    document.documentElement.style.setProperty("--hue", btn.dataset.hue);
+  }));
+})();
+</script>

@@ -1,0 +1,1377 @@
+<title>PasteDeck — Layout Workbench</title>
+
+<style>
+/* ───────────────────────────────────────────────────────────
+   Tokens. Workbench chrome and the specimen are two separate
+   palettes on purpose: the chrome follows the viewer's theme,
+   the specimen follows its own switch (that's a design axis,
+   not a viewing preference).
+   ─────────────────────────────────────────────────────────── */
+:root {
+  --ground:      #e8e9ee;
+  --surface:     #fdfdfe;
+  --surface-2:   #f2f3f7;
+  --line:        #d2d5de;
+  --line-strong: #b6bac6;
+  --ink:         #16181f;
+  --ink-2:       #5a5f6e;
+  --ink-3:       #888da0;
+  --accent:      #4b45d6;
+  --accent-soft: #4b45d61a;
+  --measure:     #c0564a;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --pt: 1;                /* points → px, set by the fit calculation */
+  --rail: 208px;
+  --panel: 316px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:      #121317;
+    --surface:     #1a1c22;
+    --surface-2:   #22242c;
+    --line:        #2c2f38;
+    --line-strong: #3d414d;
+    --ink:         #e8eaf0;
+    --ink-2:       #a0a6b8;
+    --ink-3:       #6e7488;
+    --accent:      #8d88ff;
+    --accent-soft: #8d88ff1f;
+    --measure:     #e0897b;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #121317;
+  --surface:     #1a1c22;
+  --surface-2:   #22242c;
+  --line:        #2c2f38;
+  --line-strong: #3d414d;
+  --ink:         #e8eaf0;
+  --ink-2:       #a0a6b8;
+  --ink-3:       #6e7488;
+  --accent:      #8d88ff;
+  --accent-soft: #8d88ff1f;
+  --measure:     #e0897b;
+}
+:root[data-theme="light"] {
+  --ground:      #e8e9ee;
+  --surface:     #fdfdfe;
+  --surface-2:   #f2f3f7;
+  --line:        #d2d5de;
+  --line-strong: #b6bac6;
+  --ink:         #16181f;
+  --ink-2:       #5a5f6e;
+  --ink-3:       #888da0;
+  --accent:      #4b45d6;
+  --accent-soft: #4b45d61a;
+  --measure:     #c0564a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Workbench frame ─────────────────────────────────────── */
+
+.wb-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.wb-title {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.028em;
+  line-height: 1;
+}
+.wb-sub {
+  margin: 8px 0 0;
+  max-width: 58ch;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.wb-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: right;
+  line-height: 1.9;
+}
+
+.wb-grid {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr) var(--panel);
+  align-items: start;
+  min-height: calc(100vh - 110px);
+}
+@media (max-width: 1180px) {
+  .wb-grid { grid-template-columns: minmax(0, 1fr); }
+  .rail, .panel { border: 0 !important; }
+}
+
+/* ── Left rail: variants ─────────────────────────────────── */
+
+.rail {
+  position: sticky;
+  top: 0;
+  padding: 20px 16px 32px;
+  border-right: 1px solid var(--line);
+}
+.label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.rail .label { padding-left: 4px; }
+
+.variant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+}
+@media (max-width: 1180px) {
+  .variant-list { flex-direction: row; flex-wrap: wrap; }
+}
+
+.variant {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+}
+.variant:hover { background: var(--surface-2); }
+.variant[aria-pressed="true"] {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.variant:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.variant b { display: block; font-size: 12.5px; font-weight: 600; }
+.variant span {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.03em;
+}
+
+/* Miniature diagram of where the panel sits on screen. */
+.mini {
+  position: relative;
+  width: 34px;
+  height: 23px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.mini::after {
+  content: "";
+  position: absolute;
+  background: var(--accent);
+  opacity: 0.85;
+}
+.variant[aria-pressed="true"] .mini { border-color: var(--accent); }
+.mini-bottom::after  { left: 0;    right: 0;   bottom: 0;   height: 8px; }
+.mini-island::after  { left: 3px;  right: 3px; bottom: 3px; height: 7px; border-radius: 2px; }
+.mini-palette::after { left: 7px;  right: 7px; top: 5px;    bottom: 5px; border-radius: 2px; }
+.mini-corner::after  { right: 3px; bottom: 3px; width: 16px; height: 11px; border-radius: 2px; }
+.mini-rail::after    { right: 0;   top: 0;     bottom: 0;   width: 10px; }
+
+/* ── Stage ───────────────────────────────────────────────── */
+
+.stage-col { padding: 20px 24px 40px; min-width: 0; }
+
+.stage-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.stage-head .label { flex: 1; }
+
+.seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+.seg button {
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px #0000001f; }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.stage {
+  position: relative;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0 / 16px 16px,
+    var(--surface-2);
+}
+
+/* ── Simulated desktop ───────────────────────────────────── */
+
+.screen {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 10px;
+  overflow: hidden;
+  background: linear-gradient(150deg, #2b3a67 0%, #4c3f7a 42%, #8f5a7c 78%, #c07a63 100%);
+  box-shadow: 0 18px 40px #00000038, 0 0 0 1px #00000024;
+}
+.screen-menubar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: calc(24px * var(--pt));
+  padding: 0 calc(14px * var(--pt));
+  background: #0000003d;
+  backdrop-filter: blur(20px);
+  font-size: calc(11px * var(--pt));
+  color: #ffffffde;
+}
+.screen-menubar .spacer { flex: 1; }
+.screen-menubar .bullet { opacity: 0.75; }
+.menu-clip { font-weight: 600; color: #fff; }
+
+/* The app you copied from, sitting behind the deck. */
+.screen-window {
+  position: absolute;
+  left: 8%;
+  top: calc(24px * var(--pt) + 3%);
+  width: 62%;
+  height: 62%;
+  border-radius: calc(10px * var(--pt));
+  background: color-mix(in srgb, #1c1d24 82%, transparent);
+  box-shadow: 0 20px 50px #00000055;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--pt));
+  color: #7f879b;
+}
+.screen-window .bar {
+  display: flex;
+  gap: calc(6px * var(--pt));
+  align-items: center;
+  padding: calc(9px * var(--pt)) calc(11px * var(--pt));
+  background: #ffffff0d;
+}
+.screen-window .dot { width: calc(9px * var(--pt)); height: calc(9px * var(--pt)); border-radius: 50%; background: #ffffff26; }
+.screen-window .body { padding: calc(12px * var(--pt)); line-height: 1.7; white-space: pre; }
+
+.screen-dock {
+  position: absolute;
+  left: 50%;
+  bottom: calc(6px * var(--pt));
+  transform: translateX(-50%);
+  display: flex;
+  gap: calc(6px * var(--pt));
+  padding: calc(5px * var(--pt));
+  border-radius: calc(14px * var(--pt));
+  background: #ffffff1f;
+  backdrop-filter: blur(14px);
+}
+.screen-dock i {
+  display: block;
+  width: calc(30px * var(--pt));
+  height: calc(30px * var(--pt));
+  border-radius: calc(7px * var(--pt));
+  background: linear-gradient(160deg, #ffffff5c, #ffffff26);
+}
+.screen[data-dock="off"] .screen-dock { display: none; }
+
+/* ── The specimen: the deck itself ───────────────────────── */
+
+.deck {
+  --deck-fg:      #f2f3f6;
+  --deck-fg-2:    #a2a7b5;
+  --deck-fg-3:    #7c8190;
+  --deck-bg:      rgba(26, 27, 32, 0.72);
+  --deck-fill:    rgba(255, 255, 255, 0.055);
+  --deck-fill-2:  rgba(255, 255, 255, 0.105);
+  --deck-hair:    rgba(255, 255, 255, 0.1);
+  --deck-accent:  hsl(var(--hue) 82% 66%);
+
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--deck-bg);
+  backdrop-filter: blur(calc(var(--blur) * 1px)) saturate(180%);
+  border: 1px solid var(--deck-hair);
+  border-radius: var(--panelRadiusS);
+  box-shadow: 0 calc(14px * var(--pt)) calc(44px * var(--pt)) #00000059;
+  color: var(--deck-fg);
+  font-size: calc(12px * var(--pt));
+}
+.deck[data-appearance="light"] {
+  --deck-fg:      #191b22;
+  --deck-fg-2:    #565c6b;
+  --deck-fg-3:    #878da0;
+  --deck-bg:      rgba(244, 245, 248, 0.76);
+  --deck-fill:    rgba(0, 0, 0, 0.045);
+  --deck-fill-2:  rgba(0, 0, 0, 0.085);
+  --deck-hair:    rgba(0, 0, 0, 0.1);
+  --deck-accent:  hsl(var(--hue) 74% 50%);
+}
+
+/* Placement per variant — the whole point of the page. */
+.deck[data-variant="bottom"] {
+  left: var(--insetS);
+  right: var(--insetS);
+  bottom: var(--insetS);
+  height: var(--deckHS);
+}
+.deck[data-variant="island"] {
+  left: var(--insetS);
+  right: var(--insetS);
+  bottom: var(--insetS);
+  height: var(--deckHS);
+}
+.deck[data-variant="palette"] {
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: min(calc(820px * var(--pt)), 88%);
+  height: calc(460px * var(--pt));
+}
+.deck[data-variant="corner"] {
+  right: var(--insetS);
+  bottom: var(--insetS);
+  width: min(calc(740px * var(--pt)), 62%);
+  height: calc(400px * var(--pt));
+}
+.deck[data-variant="rail"] {
+  right: 0;
+  top: calc(24px * var(--pt));
+  bottom: 0;
+  width: calc(348px * var(--pt));
+  border-radius: var(--panelRadiusS) 0 0 0;
+  border-right: 0;
+}
+
+/* Header: search on its own row, categories beneath it.
+   Both rows are the height of the control they hold; the space around them is
+   panel padding and an explicit row gap, so the rhythm is a sum, not a guess. */
+.deck-search {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--pt));
+  flex: none;
+  height: calc(var(--searchH) * var(--pt));
+  margin-top: calc(var(--pad) * var(--pt));
+  padding: 0 calc(var(--pad) * var(--pt));
+}
+.deck-cats {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: calc(var(--catH) * var(--pt));
+  margin-top: calc(var(--rowGap) * var(--pt));
+  padding: 0 calc(var(--pad) * var(--pt));
+}
+.deck-search .count {
+  font-size: calc(11px * var(--pt));
+  color: var(--deck-fg-3);
+  margin-left: auto;
+}
+.deck[data-catbar="off"] .deck-cats { display: none; }
+
+.chips {
+  display: flex;
+  gap: calc(6px * var(--pt));
+  overflow: hidden;
+  flex: 1;
+  mask-image: linear-gradient(90deg, #000 88%, transparent);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4px * var(--pt));
+  flex: none;
+  padding: calc(5px * var(--pt)) calc(9px * var(--pt));
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--deck-fill);
+  font-size: calc(11px * var(--pt));
+  color: var(--deck-fg-2);
+  white-space: nowrap;
+}
+.chip[data-on="true"] {
+  background: color-mix(in srgb, var(--deck-accent) 24%, transparent);
+  border-color: color-mix(in srgb, var(--deck-accent) 62%, transparent);
+  color: var(--deck-accent);
+  font-weight: 600;
+}
+.chip .glyph { opacity: 0.9; font-size: calc(9.5px * var(--pt)); }
+.chip.add { color: var(--deck-fg-3); padding-inline: calc(8px * var(--pt)); }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--pt));
+  flex: none;
+  width: calc(190px * var(--pt));
+  padding: calc(6px * var(--pt)) calc(10px * var(--pt));
+  border: 1px solid color-mix(in srgb, var(--deck-accent) 55%, transparent);
+  border-radius: 999px;
+  background: var(--deck-fill);
+  font-size: calc(12px * var(--pt));
+  color: var(--deck-fg-3);
+}
+
+/* Card strip */
+.deck-body {
+  display: flex;
+  gap: calc(var(--gap) * var(--pt));
+  flex: 1;
+  min-height: 0;
+  padding: calc(var(--pad) * var(--pt));
+  align-items: flex-start;
+  align-content: flex-start;
+  overflow: hidden;
+}
+.deck[data-form="grid"] .deck-body { flex-wrap: wrap; align-content: flex-start; }
+.deck[data-form="list"] .deck-body { flex-direction: column; gap: calc(3px * var(--pt)); padding-inline: calc(8px * var(--pt)); }
+.deck[data-form="split"] .deck-body { padding: 0; gap: 0; }
+
+.split-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(2px * var(--pt));
+  width: calc(300px * var(--pt));
+  flex: none;
+  padding: calc(8px * var(--pt));
+  border-right: 1px solid var(--deck-hair);
+  overflow: hidden;
+}
+.split-preview {
+  flex: 1;
+  min-width: 0;
+  padding: calc(18px * var(--pt));
+  display: flex;
+  flex-direction: column;
+  gap: calc(10px * var(--pt));
+}
+.split-preview .pv-title { font-size: calc(14px * var(--pt)); font-weight: 600; }
+.split-preview .pv-body {
+  flex: 1;
+  padding: calc(12px * var(--pt));
+  border-radius: calc(8px * var(--pt));
+  background: var(--deck-fill);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--pt));
+  line-height: 1.65;
+  color: var(--deck-fg-2);
+  white-space: pre-wrap;
+  overflow: hidden;
+}
+.split-preview .pv-meta {
+  display: flex;
+  gap: calc(18px * var(--pt));
+  font-size: calc(10px * var(--pt));
+  color: var(--deck-fg-3);
+}
+.split-preview .pv-meta b {
+  display: block;
+  font-size: calc(8px * var(--pt));
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/* A card */
+.card {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: calc(var(--cardW) * var(--pt));
+  border: 1px solid var(--deck-hair);
+  height: calc(var(--cardH) * var(--pt));
+  border-radius: calc(var(--cardRadius) * var(--pt));
+  background: var(--deck-fill);
+  overflow: hidden;
+}
+.card[data-selected="true"] {
+  background: var(--deck-fill-2);
+  border-color: var(--deck-accent);
+  box-shadow: inset 0 0 0 1px var(--deck-accent);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--pt));
+  padding: calc(8px * var(--pt)) calc(10px * var(--pt)) calc(6px * var(--pt));
+  font-size: calc(11px * var(--pt));
+  color: var(--deck-fg-2);
+}
+.card-head .name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-head .age { margin-left: auto; font-size: calc(10px * var(--pt)); color: var(--deck-fg-3); }
+.card-head .pin { color: #f0a24b; font-size: calc(9px * var(--pt)); }
+.deck[data-icons="off"] .appicon { display: none; }
+
+.appicon {
+  flex: none;
+  width: calc(14px * var(--pt));
+  height: calc(14px * var(--pt));
+  border-radius: calc(3.5px * var(--pt));
+  display: grid;
+  place-items: center;
+  font-size: calc(8px * var(--pt));
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 1px #00000040;
+}
+
+.card-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 calc(10px * var(--pt));
+  overflow: hidden;
+  font-size: calc(12px * var(--pt));
+  line-height: 1.42;
+}
+.card-body.mono { font-family: var(--font-mono); font-size: calc(11px * var(--pt)); line-height: 1.5; white-space: pre-wrap; }
+.card-body .host { display: block; font-weight: 600; margin-bottom: calc(4px * var(--pt)); }
+.card-body .url { color: var(--deck-fg-2); word-break: break-all; font-size: calc(11px * var(--pt)); }
+.card-body .file { display: flex; align-items: center; gap: calc(6px * var(--pt)); margin-bottom: calc(5px * var(--pt)); font-size: calc(11px * var(--pt)); }
+.card-body .file i { width: calc(13px * var(--pt)); height: calc(15px * var(--pt)); border-radius: calc(2px * var(--pt)); background: var(--deck-fill-2); flex: none; }
+
+.thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: calc(var(--contentRadius) * var(--pt));
+  background: linear-gradient(135deg, #f9a03f 0%, #d0559b 52%, #8b5cf6 100%);
+}
+.swatch {
+  display: flex;
+  gap: calc(8px * var(--pt));
+  align-items: center;
+  height: 100%;
+}
+.swatch i { width: calc(40px * var(--pt)); height: 100%; border-radius: calc(var(--contentRadius) * var(--pt)); background: #3f7fd0; border: 1px solid #ffffff2e; }
+.swatch b { font-family: var(--font-mono); font-size: calc(12.5px * var(--pt)); font-weight: 600; }
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--pt));
+  padding: calc(7px * var(--pt)) calc(10px * var(--pt));
+  background: rgba(127, 127, 127, 0.08);
+  font-size: calc(10px * var(--pt));
+  font-weight: 500;
+}
+.deck[data-foot="off"] .card-foot { display: none; }
+.card-foot .cap { margin-left: auto; }
+
+.cap {
+  padding: calc(2px * var(--pt)) calc(5px * var(--pt));
+  border-radius: calc(4px * var(--pt));
+  background: rgba(127, 127, 127, 0.18);
+  font-family: var(--font-mono);
+  font-size: calc(9.5px * var(--pt));
+  color: var(--deck-fg-2);
+}
+
+/* List row form, for the rail and palette variants */
+.row {
+  display: flex;
+  align-items: center;
+  gap: calc(9px * var(--pt));
+  flex: none;
+  padding: calc(8px * var(--pt)) calc(10px * var(--pt));
+  border-radius: calc(7px * var(--pt));
+  font-size: calc(12px * var(--pt));
+}
+.row[data-selected="true"] { background: color-mix(in srgb, var(--deck-accent) 26%, transparent); }
+.row .txt { flex: 1; min-width: 0; }
+.row .txt b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .txt span { font-size: calc(10px * var(--pt)); color: var(--deck-fg-3); }
+.row .age { font-size: calc(10px * var(--pt)); color: var(--deck-fg-3); }
+
+/* Detail strip */
+.deck-detail {
+  display: flex;
+  align-items: center;
+  gap: calc(12px * var(--pt));
+  flex: none;
+  height: calc(var(--detailH) * var(--pt));
+  padding: 0 calc(var(--pad) * var(--pt));
+  border-top: 1px solid var(--deck-hair);
+}
+.deck[data-detail="off"] .deck-detail { display: none; }
+.deck-detail .dt-title { font-size: calc(12px * var(--pt)); font-weight: 500; }
+.deck-detail .dt-meta { font-size: calc(10px * var(--pt)); color: var(--deck-fg-2); margin-top: calc(3px * var(--pt)); }
+.hints { margin-left: auto; display: flex; gap: calc(10px * var(--pt)); align-items: center; }
+.hints span { font-size: calc(10px * var(--pt)); color: var(--deck-fg-3); }
+.deck[data-hints="off"] .hints { display: none; }
+
+/* ── Measurements ────────────────────────────────────────── */
+
+.measure {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--measure);
+  pointer-events: none;
+}
+.stage[data-measure="off"] .measure { display: none; }
+.m-height {
+  right: -1px;
+  bottom: 0;
+  width: 62px;
+  border-left: 1px dashed var(--measure);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  padding: 4px 0;
+}
+.m-card {
+  top: -20px;
+  border-top: 1px dashed var(--measure);
+  text-align: center;
+  padding-top: 3px;
+}
+.m-tick {
+  position: absolute;
+  border-top: 1px dashed var(--measure);
+  left: 0; right: 0;
+}
+
+/* ── Right panel: controls ───────────────────────────────── */
+
+.panel {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: 20px 18px 40px;
+  border-left: 1px solid var(--line);
+}
+.group { margin-bottom: 22px; }
+.group > .label { display: block; margin-bottom: 10px; }
+
+.ctl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 9px;
+}
+.ctl label { font-size: 12px; color: var(--ink-2); }
+.ctl output {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.ctl input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 0; }
+.ctl.disabled { opacity: 0.35; pointer-events: none; }
+
+.toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.toggle {
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.derived {
+  margin-top: 14px;
+  padding: 11px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.derived .label { display: block; margin-bottom: 7px; }
+.derived div { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+.derived code { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink); }
+.derived b {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--measure); font-variant-numeric: tabular-nums;
+}
+
+pre.code {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  overflow-x: auto;
+  white-space: pre;
+  tab-size: 4;
+}
+pre.code b { color: var(--accent); font-weight: 600; }
+
+.btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Notes ───────────────────────────────────────────────── */
+
+.notes {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.note { padding: 16px 18px; background: var(--surface); }
+.note h4 {
+  margin: 0 0 7px;
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.note p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
+.note code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.verdict {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.v-good { background: #2f9e5f1f; color: #2f8d57; }
+.v-warn { background: #c0864a24; color: #a5712f; }
+.v-cost { background: #c0564a1f; color: var(--measure); }
+@media (prefers-color-scheme: dark) {
+  .v-good { color: #6cd39a; }
+  .v-warn { color: #e0b06a; }
+}
+:root[data-theme="dark"] .v-good { color: #6cd39a; }
+:root[data-theme="dark"] .v-warn { color: #e0b06a; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .deck, .card, .chip { transition: all 0.18s cubic-bezier(0.32, 0.72, 0, 1); }
+}
+</style>
+
+<header class="wb-head">
+  <div>
+    <h1 class="wb-title">Layout workbench</h1>
+    <p class="wb-sub">
+      Five placements for the PasteDeck panel, drawn at true point scale inside a simulated
+      desktop. Everything here maps onto SwiftUI constructs already in the project — tune the
+      numbers, then copy them into <code>Theme.swift</code>.
+    </p>
+  </div>
+  <div class="wb-meta">
+    <div>Specimen · SF Pro at 1&nbsp;pt&nbsp;=&nbsp;1&nbsp;pt</div>
+    <div id="scaleReadout">Stage scale · —</div>
+  </div>
+</header>
+
+<div class="wb-grid">
+  <nav class="rail" aria-label="Layout variants">
+    <span class="label">Placement</span>
+    <div class="variant-list" id="variants"></div>
+  </nav>
+
+  <main class="stage-col">
+    <div class="stage-head">
+      <span class="label" id="stageLabel">Bottom deck</span>
+
+      <div class="seg" role="group" aria-label="Simulated display size">
+        <button type="button" data-screen="1440">1440</button>
+        <button type="button" data-screen="1512" aria-pressed="true">1512</button>
+        <button type="button" data-screen="1728">1728</button>
+        <button type="button" data-screen="2560">2560</button>
+      </div>
+
+      <div class="seg" role="group" aria-label="Specimen appearance">
+        <button type="button" data-appearance="dark" aria-pressed="true">Dark</button>
+        <button type="button" data-appearance="light">Light</button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage" data-measure="on">
+      <div class="screen" id="screen">
+        <div class="screen-menubar">
+          <span class="menu-clip">◧</span>
+          <span class="bullet">Xcode</span>
+          <span class="bullet">File</span>
+          <span class="bullet">Edit</span>
+          <span class="spacer"></span>
+          <span class="bullet">100%</span>
+          <span class="bullet">14:02</span>
+        </div>
+
+        <div class="screen-window" aria-hidden="true">
+          <div class="bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+          <div class="body">func recentClippings(limit: Int) throws -> [ClipItem] {
+    try store.items(ClipQuery(filter: .all, limit: limit))
+}</div>
+        </div>
+
+        <div class="screen-dock" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+
+        <section class="deck" id="deck" data-variant="bottom" data-appearance="dark" aria-label="PasteDeck specimen">
+          <div class="deck-search">
+            <div class="search"><span>⌕</span><span>Search history</span></div>
+            <span class="count">8 clippings</span>
+          </div>
+          <div class="deck-cats"><div class="chips" id="chips"></div></div>
+          <div class="deck-body" id="deckBody"></div>
+          <div class="deck-detail">
+            <div>
+              <div class="dt-title" id="dtTitle">func recentClippings(limit: Int) throws</div>
+              <div class="dt-meta" id="dtMeta">from Xcode · Today at 14:02 · 116 bytes · Lines: 3 · Language: Swift</div>
+            </div>
+            <div class="hints">
+              <span class="cap">↩</span><span>paste</span>
+              <span class="cap">space</span><span>preview</span>
+              <span class="cap">⌘P</span><span>pin</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="measure m-height" id="mHeight"></div>
+      </div>
+      <div class="measure m-card" id="mCard"></div>
+    </div>
+
+    <div class="notes" id="notes"></div>
+  </main>
+
+  <aside class="panel" aria-label="Controls">
+    <div class="group">
+      <span class="label">Geometry — points</span>
+      <div class="ctl" id="ctl-cardH">
+        <label for="cardH">Card height</label><output for="cardH" id="out-cardH"></output>
+        <input type="range" id="cardH" min="56" max="320" step="4">
+      </div>
+      <div class="ctl" id="ctl-cardW">
+        <label for="cardW">Card width</label><output for="cardW" id="out-cardW"></output>
+        <input type="range" id="cardW" min="150" max="360" step="2">
+      </div>
+      <div class="ctl" id="ctl-gap">
+        <label for="gap">Card gap</label><output for="gap" id="out-gap"></output>
+        <input type="range" id="gap" min="0" max="28" step="1">
+      </div>
+      <div class="ctl" id="ctl-pad">
+        <label for="pad">Edge padding</label><output for="pad" id="out-pad"></output>
+        <input type="range" id="pad" min="4" max="32" step="1">
+      </div>
+      <div class="ctl" id="ctl-inset">
+        <label for="inset">Screen inset</label><output for="inset" id="out-inset"></output>
+        <input type="range" id="inset" min="0" max="64" step="2">
+      </div>
+    </div>
+
+    <div class="group">
+      <span class="label">Shape &amp; material</span>
+      <div class="ctl" id="ctl-tile">
+        <label for="tile">Tile radius (the atom)</label><output for="tile" id="out-tile"></output>
+        <input type="range" id="tile" min="0" max="12" step="1">
+      </div>
+      <div class="ctl" id="ctl-blur">
+        <label for="blur">Backdrop blur</label><output for="blur" id="out-blur"></output>
+        <input type="range" id="blur" min="0" max="60" step="2">
+      </div>
+      <div class="ctl" id="ctl-hue">
+        <label for="hue">Accent hue</label><output for="hue" id="out-hue"></output>
+        <input type="range" id="hue" min="0" max="360" step="1">
+      </div>
+      <div class="derived">
+        <span class="label">Derived — never set by hand</span>
+        <div><code>radiusPanel</code> = tile + padding<b id="d-panelRadius"></b></div>
+        <div><code>radiusCard</code> = tile + cardPadding<b id="d-cardRadius"></b></div>
+        <div><code>radiusTile</code> = the atom<b id="d-contentRadius"></b></div>
+        <div><code>deckHeight</code> = header + strip + rule + meta<b id="d-deckH"></b></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <span class="label">Bars &amp; chrome</span>
+      <div class="ctl" id="ctl-searchH">
+        <label for="searchH">Search field</label><output for="searchH" id="out-searchH"></output>
+        <input type="range" id="searchH" min="20" max="48" step="2">
+      </div>
+      <div class="ctl" id="ctl-catH">
+        <label for="catH">Category chips</label><output for="catH" id="out-catH"></output>
+        <input type="range" id="catH" min="16" max="48" step="2">
+      </div>
+      <div class="ctl" id="ctl-rowGap">
+        <label for="rowGap">Search → chips gap</label><output for="rowGap" id="out-rowGap"></output>
+        <input type="range" id="rowGap" min="0" max="24" step="2">
+      </div>
+      <div class="ctl" id="ctl-detailH">
+        <label for="detailH">Detail bar</label><output for="detailH" id="out-detailH"></output>
+        <input type="range" id="detailH" min="36" max="80" step="2">
+      </div>
+      <div class="toggles" id="toggles"></div>
+    </div>
+
+    <div class="group">
+      <span class="label">Values for Theme.swift</span>
+      <pre class="code" id="codeOut"></pre>
+      <button class="btn" type="button" id="copyBtn">Copy Swift</button>
+      <button class="btn" type="button" id="resetBtn">Reset to shipped values</button>
+    </div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ── Real content, lifted from the app's own preview seed ── */
+  const CLIPS = [
+    { app: "Xcode",    tint: "#3b6ef5", kind: "Code",  age: "2m",  sel: true,
+      body: `func recentClippings(limit: Int) throws -> [ClipItem] {\n    try store.items(\n        ClipQuery(filter: .all, limit: limit)\n    )\n}`,
+      mono: true, sub: "Swift · 3 lines" },
+    { app: "Safari",   tint: "#2b9cf0", kind: "Link",  age: "6m",
+      host: "developer.apple.com", url: "https://developer.apple.com/documentation/appkit/nspasteboard",
+      sub: "developer.apple.com" },
+    { app: "Preview",  tint: "#7b62e8", kind: "Image", age: "11m", thumb: true, sub: "PNG · 1024 × 1024" },
+    { app: "Notes",    tint: "#f0b53f", kind: "Text",  age: "24m", pinned: true,
+      body: "Ship the retention policy before the release. Pinned so it survives the nightly prune.",
+      sub: "13 words" },
+    { app: "Figma",    tint: "#e2554a", kind: "Color", age: "47m", swatch: "#3f7fd0", sub: "#3F7FD0" },
+    { app: "Finder",   tint: "#4aa3e0", kind: "File",  age: "1h",
+      files: ["quarterly-report.pdf", "deck-notes.md"], sub: "2 files · 4.1 MB" },
+    { app: "Terminal", tint: "#5c626f", kind: "Code",  age: "1h",
+      body: "SELECT kind, COUNT(*)\n  FROM items\n GROUP BY kind\n ORDER BY 2 DESC;",
+      mono: true, sub: "SQL · 4 lines" },
+    { app: "Slack",    tint: "#c0526f", kind: "Text",  age: "2h",
+      body: "Meeting moved to Thursday 15:00 — the room is booked under “Deck review”.",
+      sub: "12 words" },
+  ];
+
+  const CHIPS = [
+    { icon: "▦", name: "All", on: true }, { icon: "✦", name: "Pinned" },
+    { icon: "≡", name: "Text" }, { icon: "⚭", name: "Links" },
+    { icon: "▣", name: "Images" }, { icon: "◈", name: "Files" },
+    { icon: "⌘", name: "Code" }, { icon: "◐", name: "Colors" },
+    { icon: "▤", name: "Work" }, { icon: "＋", name: "", add: true },
+  ];
+
+  /* ── Variants. `form` decides how the body is composed. ─── */
+  const VARIANTS = {
+    bottom: {
+      name: "Bottom deck", note: "full width · shipped", form: "deck", mini: "mini-bottom",
+      defaults: { inset: 12 },
+      uses: ["cardH", "cardW", "gap", "pad", "inset", "tile", "rowGap", "blur", "hue", "searchH", "catH", "detailH"],
+      swift: (v, d) => `NSRect(x: visible.minX + ${v.inset}, y: visible.minY + ${v.inset},\n       width: visible.width - ${v.inset * 2}, height: ${d.deckH})`,
+      notes: [
+        ["v-good", "Muscle memory", "The pointer already lives at the bottom of the screen, and the panel never covers what you were reading. This is what ships today."],
+        ["v-warn", "Wide screens waste it", "At 2560 pt you get eleven cards and eight of them are noise. Pair it with search, or cap the width."],
+        ["v-good", "SwiftUI cost: none", "This is the shipped <code>targetFrame(height:)</code>, inset by <code>Theme.screenInset</code> and sized by <code>Theme.deckHeight</code>."],
+      ],
+    },
+    island: {
+      name: "Floating island", note: "inset · lighter", form: "deck", mini: "mini-island",
+      defaults: { inset: 32, cardH: 120 },
+      uses: ["cardH", "cardW", "gap", "pad", "inset", "tile", "rowGap", "blur", "hue", "searchH", "catH", "detailH"],
+      swift: (v, d) => `NSRect(x: visible.minX + ${v.inset}, y: visible.minY + ${v.inset},\n       width: visible.width - ${v.inset * 2}, height: ${d.deckH})`,
+      notes: [
+        ["v-good", "Reads as temporary", "Detaching from the edge makes it obvious the panel is a passing overlay, not a new dock. Corners can go fully round."],
+        ["v-warn", "Costs two card slots", "A 26 pt inset each side plus bigger corners eats roughly half a card. Worth it below 1512 pt only if you keep the count low."],
+        ["v-good", "SwiftUI cost: one line", "Same frame maths with an inset constant. The shadow is already on the panel."],
+      ],
+    },
+    palette: {
+      name: "Centre palette", note: "Spotlight-style", form: "split", mini: "mini-palette",
+      defaults: {},
+      uses: ["pad", "tile", "rowGap", "blur", "hue", "searchH", "catH", "detailH"],
+      swift: () => `let size = NSSize(width: 820, height: 460)\nNSRect(x: visible.midX - size.width / 2,\n       y: visible.midY - size.height / 2 + 40,\n       width: size.width, height: size.height)`,
+      notes: [
+        ["v-good", "Best for searching", "A vertical list plus a real preview pane beats eight truncated cards when you know roughly what you're looking for."],
+        ["v-cost", "Covers your work", "It lands over the document you're pasting into, so the thing you're about to modify is hidden while you choose."],
+        ["v-warn", "SwiftUI cost: a rewrite", "<code>DeckView</code>'s <code>LazyHStack</code> becomes an <code>HSplitView</code>-style pair; <code>ClipCardView</code> needs a row form and the preview needs the full payload, not the thumbnail."],
+      ],
+    },
+    corner: {
+      name: "Corner grid", note: "two rows · compact", form: "grid", mini: "mini-corner",
+      defaults: { inset: 22, cardW: 196 },
+      uses: ["cardH", "cardW", "gap", "pad", "inset", "tile", "rowGap", "blur", "hue", "searchH", "catH", "detailH"],
+      swift: (v) => `let size = NSSize(width: 740, height: 400)\nNSRect(x: visible.maxX - size.width - ${v.inset},\n       y: visible.minY + ${v.inset},\n       width: size.width, height: size.height)`,
+      notes: [
+        ["v-good", "Twice the density", "Two rows of shorter cards show more history in less screen than one row of tall ones."],
+        ["v-cost", "Arrow keys get ambiguous", "A grid needs up/down for rows, but those keys currently switch category. Something has to give."],
+        ["v-warn", "SwiftUI cost: moderate", "Swap <code>LazyHStack</code> for <code>LazyHGrid</code> with two <code>GridItem</code> rows and rework the key handler's index maths."],
+      ],
+    },
+    rail: {
+      name: "Side rail", note: "docked · vertical", form: "list", mini: "mini-rail",
+      defaults: {},
+      uses: ["pad", "tile", "rowGap", "blur", "hue", "searchH", "catH", "detailH"],
+      swift: () => `NSRect(x: visible.maxX - 348, y: visible.minY,\n       width: 348, height: visible.height)`,
+      notes: [
+        ["v-good", "Twenty items at a glance", "Rows are the most scannable form there is, and a tall screen shows far more of them than a strip ever will."],
+        ["v-cost", "Weak for media", "Images and colours shrink to a swatch. If most of what you copy is visual, this is the wrong shape."],
+        ["v-warn", "SwiftUI cost: moderate", "A <code>List</code> of row views, plus a decision about whether it stays up while you work — which would make it a window, not an overlay."],
+      ],
+    },
+  };
+
+  const SHIPPED = {
+    cardH: 96, cardW: 232, gap: 8, pad: 12, inset: 12,
+    tile: 4, blur: 30, hue: 250, searchH: 28, catH: 24, rowGap: 8, detailH: 52,
+  };
+  const CARD_PAD = 8;
+  /* Derived, never hand-picked — mirrors Theme.swift.
+     radius(container) = tile + its own padding, which is the concentric rule
+     `inner = outer − inset` read from the inside out. Deriving the panel from
+     the *card* instead (12 + 12 = 24) double-counts: cards sit in the middle
+     of the panel and never touch its corners, so the panel comes out rounder
+     than anything nested in it and crowds the search field and meta bar. */
+  const derived = (s) => ({
+    panelRadius: s.tile + s.pad,
+    cardRadius: s.tile + CARD_PAD,
+    contentRadius: s.tile,
+    deckH: s.pad + s.searchH + s.rowGap + s.catH
+         + s.pad + s.cardH + s.pad + 1 + s.detailH,
+  });
+  const SLIDERS = Object.keys(SHIPPED);
+
+  const TOGGLES = [
+    { key: "catbar", label: "Category bar", on: true },
+    { key: "detail", label: "Detail bar",   on: true },
+    { key: "hints",  label: "Key hints",    on: true },
+    { key: "icons",  label: "App icons",    on: true },
+    { key: "foot",   label: "Card footer",  on: true },
+    { key: "dock",   label: "Dock",         on: true },
+    { key: "measure",label: "Measurements", on: true },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const deck = $("deck"), screen = $("screen"), stage = $("stage");
+  const state = { variant: "bottom", screenPt: 1512, appearance: "dark", ...SHIPPED };
+  const flags = Object.fromEntries(TOGGLES.map((t) => [t.key, t.on]));
+
+  /* ── Card builders ─────────────────────────────────────── */
+
+  const icon = (c) => `<i class="appicon" style="background:${c.tint}">${c.app[0]}</i>`;
+
+  function cardBody(c) {
+    if (c.thumb) return `<div class="card-body"><div class="thumb"></div></div>`;
+    if (c.swatch) return `<div class="card-body"><div class="swatch"><i style="background:${c.swatch}"></i><b>${c.sub}</b></div></div>`;
+    if (c.files) return `<div class="card-body">${c.files.map((f) => `<div class="file"><i></i>${f}</div>`).join("")}</div>`;
+    if (c.host) return `<div class="card-body"><span class="host">${c.host}</span><span class="url">${c.url}</span></div>`;
+    return `<div class="card-body${c.mono ? " mono" : ""}">${c.body}</div>`;
+  }
+
+  function card(c, i) {
+    return `<article class="card" data-selected="${!!c.sel}">
+      <div class="card-head">${icon(c)}<span class="name">${c.app}</span>
+        ${c.pinned ? '<span class="pin">✦</span>' : ""}<span class="age">${c.age}</span></div>
+      ${cardBody(c)}
+      <div class="card-foot"><span style="color:var(--deck-fg-2)">${c.kind}</span>
+        <span class="cap">⌘${i + 1}</span></div>
+    </article>`;
+  }
+
+  function row(c) {
+    return `<div class="row" data-selected="${!!c.sel}">${icon(c)}
+      <span class="txt"><b>${(c.body || c.url || c.sub || "").split("\n")[0]}</b><span>${c.app} · ${c.sub}</span></span>
+      <span class="age">${c.age}</span></div>`;
+  }
+
+  function render() {
+    const v = VARIANTS[state.variant];
+    deck.dataset.variant = state.variant;
+    deck.dataset.form = v.form;
+    deck.dataset.appearance = state.appearance;
+    screen.dataset.dock = flags.dock ? "on" : "off";
+    stage.dataset.measure = flags.measure ? "on" : "off";
+    for (const t of TOGGLES) {
+      if (t.key === "dock" || t.key === "measure") continue;
+      deck.dataset[t.key] = flags[t.key] ? "on" : "off";
+    }
+
+    const body = $("deckBody");
+    if (v.form === "list") {
+      body.innerHTML = CLIPS.concat(CLIPS).slice(0, 12).map(row).join("");
+    } else if (v.form === "split") {
+      const c = CLIPS[0];
+      body.innerHTML = `<div class="split-list">${CLIPS.map(row).join("")}</div>
+        <div class="split-preview">
+          <div class="pv-title">${c.app} · Swift snippet</div>
+          <div class="pv-body">${c.body}</div>
+          <div class="pv-meta">
+            <div><b>Kind</b>Code</div><div><b>Source</b>Xcode</div>
+            <div><b>Copied</b>14:02</div><div><b>Size</b>116 bytes</div><div><b>Language</b>Swift</div>
+          </div>
+        </div>`;
+    } else {
+      const n = v.form === "grid" ? 8 : CLIPS.length;
+      body.innerHTML = CLIPS.slice(0, n).map(card).join("");
+    }
+
+    $("stageLabel").textContent = v.name;
+    document.querySelectorAll("#variants .variant").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.variant === state.variant));
+    });
+
+    // Dim the controls this variant ignores rather than hiding them —
+    // the reader learns which knobs belong to which layout.
+    for (const key of SLIDERS) {
+      $("ctl-" + key).classList.toggle("disabled", !v.uses.includes(key));
+    }
+
+    applyVars();
+    renderNotes(v);
+    renderCode(v);
+  }
+
+  /* Everything except these is a length. `--pt` is the points→pixels scale, so
+     a length has to carry px for `calc(var(--x) * var(--pt))` to be valid at
+     all — a unitless product is not a <length> and the whole declaration is
+     dropped, which silently falls back to content-driven sizing. */
+  const UNITLESS = new Set(["hue", "blur"]);
+
+  function applyVars() {
+    for (const key of SLIDERS) {
+      deck.style.setProperty("--" + key, UNITLESS.has(key) ? state[key] : state[key] + "px");
+      const out = $("out-" + key);
+      if (out) out.textContent = key === "hue" ? state.hue + "°" : state[key] + (key === "blur" ? "" : " pt");
+    }
+    // Derived values are written, never typed — that's the whole point of
+    // the formula. Changing a radius moves the panel corner with it.
+    const d = derived(state);
+    for (const [key, value] of Object.entries(d)) {
+      deck.style.setProperty("--" + key, value + "px");
+      const readout = $("d-" + key);
+      if (readout) readout.textContent = value + " pt";
+    }
+    screen.style.setProperty("--hue", state.hue);
+    fit();
+  }
+
+  /* Points → pixels, so every number in the panel is a real point value. */
+  function fit() {
+    const px = screen.clientWidth;
+    const pt = px / state.screenPt;
+    document.documentElement.style.setProperty("--pt", pt.toFixed(4));
+    // The panel's own placement is written already multiplied. `--pt` scales
+    // everything *inside* the deck correctly, but the deck's own rules read
+    // custom properties set on that same element and come out unscaled — so
+    // the specimen silently drew at 1:1 instead of at true point scale.
+    const dv = derived(state);
+    deck.style.setProperty("--insetS", (state.inset * pt).toFixed(3) + "px");
+    deck.style.setProperty("--deckHS", (dv.deckH * pt).toFixed(3) + "px");
+    deck.style.setProperty("--panelRadiusS", (dv.panelRadius * pt).toFixed(3) + "px");
+    $("scaleReadout").textContent = `Stage scale · ${(pt * 100).toFixed(0)}% of ${state.screenPt} pt`;
+    measure(pt);
+  }
+
+  function measure(pt) {
+    const v = VARIANTS[state.variant];
+    const h = $("mHeight"), c = $("mCard");
+    h.textContent = Math.round(deck.getBoundingClientRect().height / pt) + " pt";
+    h.style.height = deck.getBoundingClientRect().height + "px";
+    const showCard = v.form === "deck" || v.form === "grid";
+    c.style.display = showCard ? "" : "none";
+    if (showCard) {
+      const rect = deck.getBoundingClientRect(), stageRect = stage.getBoundingClientRect();
+      c.textContent = state.cardW + " pt";
+      c.style.left = (rect.left - stageRect.left + state.pad * pt) + "px";
+      c.style.width = (state.cardW * pt) + "px";
+    }
+  }
+
+  function renderNotes(v) {
+    $("notes").innerHTML = v.notes.map(([cls, head, text]) =>
+      `<div class="note"><span class="verdict ${cls}">${cls === "v-good" ? "strength" : cls === "v-warn" ? "trade-off" : "cost"}</span>
+       <h4>${head}</h4><p>${text}</p></div>`).join("");
+  }
+
+  function renderCode(v) {
+    const d = derived(state);
+    const changed = (k) => (state[k] !== SHIPPED[k] ? `<b>${state[k]}</b>` : state[k]);
+    $("codeOut").innerHTML =
+`enum Theme {
+    static let screenInset: CGFloat  = ${changed("inset")}
+    static let panelPadding: CGFloat = ${changed("pad")}
+    static let cardPadding: CGFloat  = 8
+    static let cardGap: CGFloat      = ${changed("gap")}
+    static let rowGap: CGFloat       = ${changed("rowGap")}
+    static let sectionGap: CGFloat   = ${changed("pad")}
+
+    // radius(container) = radiusTile + its own padding
+    static let radiusTile: CGFloat  = ${changed("tile")}
+    static let radiusCard: CGFloat  = radius(padding: cardPadding)   // ${d.cardRadius}
+    static let radiusPanel: CGFloat = radius(padding: panelPadding)  // ${d.panelRadius}
+
+    static let searchHeight: CGFloat = ${changed("searchH")}
+    static let chipHeight: CGFloat   = ${changed("catH")}
+    static let cardWidth: CGFloat    = ${changed("cardW")}
+    static let cardHeight: CGFloat   = ${changed("cardH")}
+    static let detailHeight: CGFloat = ${changed("detailH")}
+
+    static var headerHeight: CGFloat {
+        panelPadding + searchHeight + rowGap + chipHeight
+    }
+    static var deckHeight: CGFloat {      // ${d.deckH}
+        headerHeight + sectionGap + cardHeight + sectionGap
+            + hairline + detailHeight
+    }
+}
+
+// DeckWindowController.targetFrame:
+${v.swift(state, d)}`;
+  }
+
+  /* ── Wiring ────────────────────────────────────────────── */
+
+  $("variants").innerHTML = Object.entries(VARIANTS).map(([key, v]) =>
+    `<button type="button" class="variant" data-variant="${key}" aria-pressed="${key === "bottom"}">
+       <span class="mini ${v.mini}"></span><span><b>${v.name}</b><span>${v.note}</span></span>
+     </button>`).join("");
+
+  $("variants").addEventListener("click", (e) => {
+    const btn = e.target.closest(".variant");
+    if (!btn) return;
+    state.variant = btn.dataset.variant;
+    Object.assign(state, SHIPPED, VARIANTS[state.variant].defaults);
+    for (const key of SLIDERS) $(key).value = state[key];
+    render();
+  });
+
+  $("chips").innerHTML = CHIPS.map((c) =>
+    `<span class="chip${c.add ? " add" : ""}" data-on="${!!c.on}"><span class="glyph">${c.icon}</span>${c.name}</span>`).join("");
+
+  $("toggles").innerHTML = TOGGLES.map((t) =>
+    `<button type="button" class="toggle" data-key="${t.key}" aria-pressed="${t.on}">${t.label}</button>`).join("");
+
+  $("toggles").addEventListener("click", (e) => {
+    const btn = e.target.closest(".toggle");
+    if (!btn) return;
+    flags[btn.dataset.key] = !flags[btn.dataset.key];
+    btn.setAttribute("aria-pressed", String(flags[btn.dataset.key]));
+    render();
+  });
+
+  for (const key of SLIDERS) {
+    const input = $(key);
+    input.value = state[key];
+    input.addEventListener("input", () => {
+      state[key] = Number(input.value);
+      applyVars();
+      renderCode(VARIANTS[state.variant]);
+    });
+  }
+
+  document.querySelectorAll("[data-screen]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.screenPt = Number(btn.dataset.screen);
+      document.querySelectorAll("[data-screen]").forEach((b) =>
+        b.setAttribute("aria-pressed", String(b === btn)));
+      fit();
+    });
+  });
+
+  document.querySelectorAll("[data-appearance]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.appearance = btn.dataset.appearance;
+      document.querySelectorAll("[data-appearance]").forEach((b) =>
+        b.setAttribute("aria-pressed", String(b === btn)));
+      render();
+    });
+  });
+
+  $("copyBtn").addEventListener("click", async (e) => {
+    await navigator.clipboard.writeText($("codeOut").textContent);
+    e.target.textContent = "Copied";
+    setTimeout(() => { e.target.textContent = "Copy Swift"; }, 1400);
+  });
+
+  $("resetBtn").addEventListener("click", () => {
+    Object.assign(state, SHIPPED, VARIANTS[state.variant].defaults);
+    for (const key of SLIDERS) $(key).value = state[key];
+    render();
+  });
+
+  new ResizeObserver(() => fit()).observe(screen);
+  render();
+})();
+</script>

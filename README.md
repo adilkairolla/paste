@@ -1,0 +1,48 @@
+# PasteDeck
+
+A clipboard history manager for macOS. Press **⌘⇧V**, pick a clipping, it pastes
+into whatever you were just doing.
+
+![The deck](docs/deck.png)
+
+- Full history — text, links, code, colours, images, files
+- Shows which app each clipping came from, and its metadata
+- Full-text search across everything
+- Persistent categories, plus pinning
+- Old items pruned automatically so the database can't grow forever
+- Starts at login, lives in the menu bar, no Dock icon
+
+Everything stays on your machine. No network code, no accounts, no dependencies —
+one 3 MB binary and system SQLite.
+
+## Install
+
+Requires macOS 14+ and the Swift toolchain (Command Line Tools are enough — no
+Xcode needed).
+
+```sh
+make install    # builds, copies to /Applications, launches it
+make run        # build and run without installing
+make test       # 46 tests
+```
+
+Then grant **System Settings ▸ Privacy & Security ▸ Accessibility** so it can
+press ⌘V for you. Everything else works without it.
+
+## Keys
+
+| | |
+|---|---|
+| `⌘⇧V` | open the deck |
+| `←` `→` `⇥` | move within a row |
+| `↑` `↓` | move between search, categories, items |
+| `↩` | paste |
+| `⌘1`–`⌘9` | paste the nth clipping |
+| `space` | large preview |
+| `⌘P` / `⌘⌫` | pin / delete |
+
+## More
+
+[`docs/manual.md`](docs/manual.md) covers the storage model, the retention
+policy, the design system, and why an ad-hoc build loses its Accessibility
+grant on every rebuild.
