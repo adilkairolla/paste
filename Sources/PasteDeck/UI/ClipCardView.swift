@@ -101,12 +101,12 @@ struct ClipCardView: View {
                     .frame(width: 12, height: 12)
             } else {
                 Image(systemName: "app.dashed")
-                    .font(.system(size: 10))
+                    .font(.system(size: Theme.small))
                     .foregroundStyle(.tertiary)
             }
 
             Text(item.sourceAppName.isEmpty ? "Unknown" : item.sourceAppName)
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.system(size: Theme.body, weight: .medium))
                 .lineLimit(1)
                 .foregroundStyle(.secondary)
 
@@ -114,12 +114,12 @@ struct ClipCardView: View {
 
             if item.isPinned {
                 Image(systemName: "pin.fill")
-                    .font(.system(size: 8))
+                    .font(.system(size: Theme.caption))
                     .foregroundStyle(.orange)
             }
 
             Text(Theme.shortRelative(item.updatedAt))
-                .font(.system(size: 9.5))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.tertiary)
         }
     }
@@ -138,11 +138,11 @@ struct ClipCardView: View {
         case .link:
             linkContent
         case .code:
-            textContent(font: .system(size: 10.5, design: .monospaced), lines: 3)
+            textContent(font: .system(size: Theme.body, design: .monospaced), lines: Theme.cardBodyLines)
         case .prompt:
             promptContent
         default:
-            textContent(font: .system(size: 11.5), lines: 3)
+            textContent(font: .system(size: Theme.body), lines: Theme.cardBodyLines)
         }
     }
 
@@ -161,8 +161,8 @@ struct ClipCardView: View {
                         .fontWeight(.semibold)
                 }
             }
-            .font(.system(size: 11.5))
-            .lineLimit(3)
+            .font(.system(size: Theme.body))
+            .lineLimit(Theme.cardBodyLines)
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
     }
@@ -179,7 +179,7 @@ struct ClipCardView: View {
                         .aspectRatio(contentMode: .fill)
                 } else {
                     Image(systemName: "photo")
-                        .font(.system(size: 20))
+                        .font(.system(size: Theme.display))
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -188,18 +188,21 @@ struct ClipCardView: View {
 
     private var colorContent: some View {
         HStack(spacing: Theme.cardPadding) {
+            // Square, not stretched: a swatch is a sample of a colour, and a
+            // tall bar of it reads as a divider. 44 exactly fills the body of a
+            // short card, so this only changes anything on a taller one.
             RoundedRectangle(cornerRadius: Theme.radiusTile, style: .continuous)
                 .fill(Theme.swatch(fromHex: item.metadata.colorHex ?? "") ?? .gray)
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.radiusTile, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.15))
                 )
-                .frame(width: 40)
+                .frame(width: 44, height: 44)
             Text((item.metadata.colorHex ?? item.title).uppercased())
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(.system(size: Theme.large, weight: .semibold, design: .monospaced))
             Spacer(minLength: 0)
         }
-        .frame(maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.vertical, Theme.space1)
     }
 
@@ -211,14 +214,14 @@ struct ClipCardView: View {
                         .resizable()
                         .frame(width: 13, height: 13)
                     Text((path as NSString).lastPathComponent)
-                        .font(.system(size: 10.5))
+                        .font(.system(size: Theme.body))
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
             }
             if (item.metadata.fileCount ?? 0) > 2 {
                 Text("+\((item.metadata.fileCount ?? 0) - 2) more")
-                    .font(.system(size: 9.5))
+                    .font(.system(size: Theme.small))
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)
@@ -228,10 +231,10 @@ struct ClipCardView: View {
     private var linkContent: some View {
         VStack(alignment: .leading, spacing: Theme.half) {
             Text(item.metadata.host ?? "Link")
-                .font(.system(size: 11.5, weight: .semibold))
+                .font(.system(size: Theme.body, weight: .semibold))
                 .lineLimit(1)
             Text(item.metadata.url ?? item.preview)
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .truncationMode(.middle)
@@ -256,15 +259,15 @@ struct ClipCardView: View {
             }
 
             Image(systemName: item.kind.symbolName)
-                .font(.system(size: 8, weight: .semibold))
+                .font(.system(size: Theme.caption, weight: .semibold))
             Text(footerLabel)
-                .font(.system(size: 9.5, weight: .medium))
+                .font(.system(size: Theme.small, weight: .medium))
 
             Spacer(minLength: Theme.half)
 
             if let category = model.categories(for: item).first {
                 Image(systemName: "folder.fill")
-                    .font(.system(size: 8))
+                    .font(.system(size: Theme.caption))
                     .foregroundStyle(Theme.color(named: category.colorName))
             }
 
@@ -272,7 +275,7 @@ struct ClipCardView: View {
                 KeyCap(text: "⌘\(position)")
             } else {
                 Text(ByteFormat.string(item.byteSize))
-                    .font(.system(size: 9.5))
+                    .font(.system(size: Theme.small))
                     .foregroundStyle(.tertiary)
             }
         }
@@ -295,7 +298,7 @@ struct ClipCardView: View {
     /// counts up to.
     private func stackBadge(_ number: Int) -> some View {
         Text("\(number)")
-            .font(.system(size: 8, weight: .bold, design: .rounded))
+            .font(.system(size: Theme.caption, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: 13, height: 13)
             .background(Circle().fill(Color.indigo))

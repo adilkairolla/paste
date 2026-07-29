@@ -966,6 +966,7 @@ pre.code b { color: var(--accent); font-weight: 600; }
         <div><code>radiusCard</code> = tile + cardPadding<b id="d-cardRadius"></b></div>
         <div><code>radiusTile</code> = the atom<b id="d-contentRadius"></b></div>
         <div><code>deckHeight</code> = header + strip + rule + meta<b id="d-deckH"></b></div>
+        <div><code>card ÷ φ</code> = 1.000 is golden<b id="d-cardPhi"></b></div>
       </div>
     </div>
 
@@ -1093,8 +1094,12 @@ pre.code b { color: var(--accent); font-weight: 600; }
     },
   };
 
+  /* cardH is 232 / phi rounded to the 4pt grid: 143.4 -> 144, a 0.4% miss.
+     The card and the preview page are the only two rectangles in the deck with
+     a free aspect ratio; everything else is set by alignment or by a sum. */
+  const PHI = 1.618;
   const SHIPPED = {
-    cardH: 96, cardW: 232, gap: 8, pad: 12, inset: 12,
+    cardH: 144, cardW: 232, gap: 8, pad: 12, inset: 12,
     tile: 4, blur: 30, hue: 250, searchH: 28, catH: 24, rowGap: 8, detailH: 52,
   };
   const CARD_PAD = 8;
@@ -1110,6 +1115,8 @@ pre.code b { color: var(--accent); font-weight: 600; }
     contentRadius: s.tile,
     deckH: s.pad + s.searchH + s.rowGap + s.catH
          + s.pad + s.cardH + s.pad + 1 + s.detailH,
+    /* How far the current card is from golden — 1.000 means exactly phi. */
+    cardPhi: s.cardW / s.cardH / PHI,
   });
   const SLIDERS = Object.keys(SHIPPED);
 
@@ -1219,8 +1226,13 @@ pre.code b { color: var(--accent); font-weight: 600; }
     // the formula. Changing a radius moves the panel corner with it.
     const d = derived(state);
     for (const [key, value] of Object.entries(d)) {
-      deck.style.setProperty("--" + key, value + "px");
       const readout = $("d-" + key);
+      // cardPhi is a ratio, not a length: it gets no unit and no CSS variable.
+      if (key === "cardPhi") {
+        if (readout) readout.textContent = value.toFixed(3);
+        continue;
+      }
+      deck.style.setProperty("--" + key, value + "px");
       if (readout) readout.textContent = value + " pt";
     }
     screen.style.setProperty("--hue", state.hue);

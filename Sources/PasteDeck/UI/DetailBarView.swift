@@ -23,7 +23,7 @@ struct DetailBarView: View {
                 details(for: item)
             } else {
                 Text("\(model.items.count) clippings")
-                    .font(.system(size: 11))
+                    .font(.system(size: Theme.body))
                     .foregroundStyle(.tertiary)
             }
 
@@ -48,15 +48,15 @@ struct DetailBarView: View {
         VStack(alignment: .leading, spacing: Theme.half) {
             HStack(spacing: Theme.space15) {
                 Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: Theme.small, weight: .semibold))
                     .foregroundStyle(.indigo)
                 Text(model.stack.count == 1 ? "1 clipping stacked" : "\(model.stack.count) clippings stacked")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: Theme.large, weight: .medium))
             }
 
             Text(model.stack.enumerated().map { "\($0.offset + 1). \($0.element.title)" }
                 .joined(separator: "  ·  "))
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -76,19 +76,19 @@ struct DetailBarView: View {
         VStack(alignment: .leading, spacing: Theme.half) {
             HStack(spacing: Theme.space15) {
                 Image(systemName: item.kind.symbolName)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: Theme.small, weight: .semibold))
                     .foregroundStyle(Theme.accent(for: item.kind))
                 Text(item.title)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: Theme.large, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.middle)
 
                 ForEach(model.categories(for: item)) { category in
                     HStack(spacing: Theme.half) {
                         Image(systemName: category.symbolName)
-                            .font(.system(size: 8))
+                            .font(.system(size: Theme.caption))
                         Text(category.name)
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.system(size: Theme.small, weight: .medium))
                     }
                     .padding(.horizontal, Theme.pillPadding(Theme.badgeHeight))
                     .frame(height: Theme.badgeHeight)
@@ -98,7 +98,7 @@ struct DetailBarView: View {
             }
 
             Text(metadataLine(for: item))
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -123,9 +123,9 @@ struct DetailBarView: View {
         } label: {
             HStack(spacing: Theme.space1) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10))
+                    .font(.system(size: Theme.small))
                 Text("Enter can't paste — grant Accessibility")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: Theme.small, weight: .semibold))
             }
             .padding(.horizontal, Theme.pillPadding(Theme.chipHeight))
             .frame(height: Theme.chipHeight)
@@ -165,7 +165,7 @@ struct DetailBarView: View {
         HStack(spacing: Theme.space1) {
             KeyCap(text: key)
             Text(label)
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.tertiary)
         }
     }

@@ -47,24 +47,24 @@ struct PromptFillView: View {
     private var header: some View {
         HStack(spacing: Theme.space2) {
             Image(systemName: "sparkles")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: Theme.body, weight: .semibold))
                 .foregroundStyle(.indigo)
             Text(fill.item.title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: Theme.large, weight: .semibold))
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: Theme.space2)
             KeyCap(text: "⇥")
             Text("next")
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.tertiary)
             KeyCap(text: "↩")
             Text("paste")
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.tertiary)
             KeyCap(text: "⎋")
             Text("cancel")
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.tertiary)
         }
     }
@@ -74,7 +74,7 @@ struct PromptFillView: View {
             ForEach(fill.fields) { variable in
                 HStack(spacing: Theme.space2) {
                     Text(variable.displayName)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: Theme.body, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 110, alignment: .leading)
                         .lineLimit(1)
@@ -88,7 +88,7 @@ struct PromptFillView: View {
                         )
                     )
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12))
+                    .font(.system(size: Theme.large))
                     .focused($focused, equals: variable.name)
                     .padding(.horizontal, Theme.pillPadding(Theme.chipHeight))
                     .frame(height: Theme.chipHeight)
@@ -109,10 +109,10 @@ struct PromptFillView: View {
     private var builtInNote: some View {
         HStack(spacing: Theme.space1) {
             Image(systemName: "wand.and.stars")
-                .font(.system(size: 9))
+                .font(.system(size: Theme.small))
             Text(fill.resolvedBuiltIns.map { "{{\($0.name)}} — \($0.builtIn?.explanation ?? "")" }
                 .joined(separator: "   "))
-                .font(.system(size: 10))
+                .font(.system(size: Theme.small))
         }
         .foregroundStyle(.tertiary)
     }
@@ -120,7 +120,7 @@ struct PromptFillView: View {
     private var preview: some View {
         ScrollView {
             Text(fill.rendered)
-                .font(.system(size: 11))
+                .font(.system(size: Theme.body))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

@@ -323,7 +323,7 @@ private struct HotKeyRecorder: View {
             isRecording ? stopRecording() : startRecording()
         } label: {
             Text(isRecording ? "Press keys…" : shortcut.displayString)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .font(.system(size: Theme.large, weight: .medium, design: .rounded))
                 .frame(minWidth: 70)
                 .padding(.horizontal, Theme.space2)
                 .padding(.vertical, Theme.space1)

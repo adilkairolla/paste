@@ -44,9 +44,9 @@ struct CategoryBarView: View {
         } label: {
             HStack(spacing: Theme.space1) {
                 Image(systemName: tab.symbolName)
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: Theme.small, weight: .semibold))
                 Text(tab.title)
-                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: Theme.body, weight: isSelected ? .semibold : .regular))
                     .lineLimit(1)
             }
             .padding(.horizontal, Theme.pillPadding(Theme.chipHeight))
@@ -90,7 +90,7 @@ struct CategoryBarView: View {
             model.isCreatingCategory = true
         } label: {
             Image(systemName: "plus")
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: Theme.small, weight: .semibold))
                 .frame(width: Theme.chipHeight, height: Theme.chipHeight)
                 .background(Circle().fill(Color.primary.opacity(0.07)))
                 .foregroundStyle(.secondary)
@@ -102,11 +102,11 @@ struct CategoryBarView: View {
     private var newCategoryField: some View {
         HStack(spacing: Theme.space1) {
             Image(systemName: "folder.badge.plus")
-                .font(.system(size: 9))
+                .font(.system(size: Theme.small))
                 .foregroundStyle(.secondary)
             TextField("Category name", text: $model.newCategoryName)
                 .textFieldStyle(.plain)
-                .font(.system(size: 11))
+                .font(.system(size: Theme.body))
                 .frame(width: 110)
                 .focused($categoryFieldFocused)
                 .onSubmit {

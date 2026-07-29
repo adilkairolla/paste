@@ -50,7 +50,7 @@ struct DeckView: View {
             searchField
             Spacer(minLength: 0)
             Text(countSummary)
-                .font(.system(size: 11))
+                .font(.system(size: Theme.body))
                 .foregroundStyle(.tertiary)
         }
         .frame(height: Theme.searchHeight)
@@ -61,12 +61,12 @@ struct DeckView: View {
     private var searchField: some View {
         HStack(spacing: Theme.space15) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: Theme.body, weight: .medium))
                 .foregroundStyle(.secondary)
 
             TextField("Search history", text: $model.searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .font(.system(size: Theme.large))
                 .focused($searchFocused)
                 .frame(maxWidth: .infinity)
                 .onSubmit { model.pasteSelected() }
@@ -77,7 +77,7 @@ struct DeckView: View {
                     searchFocused = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
+                        .font(.system(size: Theme.body))
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
@@ -140,13 +140,13 @@ struct DeckView: View {
     private var emptyState: some View {
         VStack(spacing: Theme.space1) {
             Image(systemName: model.searchText.isEmpty ? "tray" : "magnifyingglass")
-                .font(.system(size: 22, weight: .light))
+                .font(.system(size: Theme.display, weight: .light))
                 .foregroundStyle(.tertiary)
             Text(emptyTitle)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: Theme.large, weight: .medium))
                 .foregroundStyle(.secondary)
             Text(emptySubtitle)
-                .font(.system(size: 11))
+                .font(.system(size: Theme.body))
                 .foregroundStyle(.tertiary)
         }
     }
@@ -190,7 +190,7 @@ struct DeckView: View {
     private var toast: some View {
         if let message = model.toast {
             Text(message)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: Theme.body, weight: .medium))
                 .padding(.horizontal, Theme.pillPadding(Theme.searchHeight))
                 .frame(height: Theme.searchHeight)
                 .background(Capsule().fill(.thickMaterial))

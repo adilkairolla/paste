@@ -264,10 +264,24 @@ scripts/                   .app bundler, icon generator
   Pills are the exception — their radius is half their height by definition, so
   `Theme.pillPadding(_:)` derives their side padding from their height instead.
 - **The panel height is a sum, not a measurement.** Every section has a fixed
-  height and `Theme.deckHeight` adds them up (12 + 28 + 8 + 24 + 12 + 96 + 12 +
-  1 + 52 = 245), so the hosting window can't crop a row or leave dead space.
+  height and `Theme.deckHeight` adds them up (12 + 28 + 8 + 24 + 12 + 144 + 12 +
+  1 + 52 = 293), so the hosting window can't crop a row or leave dead space.
   `design/layout-workbench.html` derives the same numbers from the same formula.
-- **The large preview is a second window.** The deck is a 245 pt strip along the
+- **φ is for rectangles, not for systems.** Two things in the deck are a
+  rectangle with a free aspect ratio, and both are golden: the preview page, and
+  the card at 232 × 144 (232 ÷ φ = 143.4, and 144 is 36 units — a 0.4 % miss, so
+  φ and the 4 pt grid happen to agree). Nothing else uses it, deliberately.
+  4 × φ = 6.47 and 4 × φ² = 10.47 leave the grid, which costs pixel alignment
+  and breaks the radius formula — `radiusCard` would land on 14.47. And the
+  panel height is a *sum*, while the search field's width is set by having to
+  align with the first card. Neither is a proportion anyone gets to choose.
+- **Seven type sizes, not fourteen.** The deck accumulated fourteen font sizes,
+  six of them separated by half a point — a distinction nobody can see and
+  everybody has to maintain. `Theme.caption/small/body/large/title/display/hero`
+  are steps of φ^⅓ ≈ 1.174 from an 11 pt body (full φ is unusable for interface
+  text: 11 → 17.8 → 28.8). The ratio matters less than the count; the names are
+  what stop it drifting back, since a raw `size: 12` is how the fourteen got in.
+- **The large preview is a second window.** The deck is a 293 pt strip along the
   bottom of the screen, so anything drawn *inside* it is a letterbox however
   it's laid out — the wrong shape for reading. The preview gets its own panel,
   sized to the golden ratio and centred in the band above the deck. It never

@@ -64,6 +64,16 @@ enum Theme {
     static let focusRing: CGFloat = 1.5
     static let hairline: CGFloat = 1
 
+    /// The golden ratio, used in exactly the two places that are a rectangle
+    /// with a free aspect ratio to choose: the card and the preview page.
+    ///
+    /// It is deliberately *not* used for spacing or radii. 4 × φ = 6.47 and
+    /// 4 × φ² = 10.47 leave the 4 pt grid, which costs pixel alignment and
+    /// breaks the radius formula above (`radiusCard` would land on 14.47).
+    /// φ describes the proportions of one rectangle; it has nothing to say
+    /// about a system built on alignment and sums.
+    static let phi: CGFloat = 1.618
+
     // MARK: - Layout
 
     /// Gap between the panel and the screen edges.
@@ -90,7 +100,13 @@ enum Theme {
     /// Inline tag next to a title, smaller than a chip you can click.
     static let badgeHeight: CGFloat = 4 * unit + half // 18
     static let cardWidth: CGFloat = 58 * unit         // 232
-    static let cardHeight: CGFloat = 24 * unit        // 96
+    /// The one component with a real aspect ratio to argue about, so it gets
+    /// the golden one: 232 ÷ φ = 143.4, and 144 is 36 units — a 0.4 % miss, the
+    /// rare case where φ and the 4 pt grid agree. Worth having because of what
+    /// the height buys: 92 pt of body instead of 44, so a card shows the whole
+    /// snippet rather than three lines and an ellipsis.
+    static let cardHeight: CGFloat = 36 * unit        // 144
+    static let cardBodyLines = 6
     static let cardHeaderHeight: CGFloat = 7 * unit   // 28
     static let cardFooterHeight: CGFloat = 6 * unit   // 24
     static let detailHeight: CGFloat = 13 * unit      // 52
@@ -104,17 +120,35 @@ enum Theme {
     /// space or overflow the window it is hosted in.
     static var deckHeight: CGFloat {
         headerHeight                                             // 72
-            + sectionGap + cardHeight + sectionGap               // 120
+            + sectionGap + cardHeight + sectionGap               // 168
             + hairline                                           // 1
             + detailHeight                                       // 52
-    }                                                            // = 245
+    }                                                            // = 293
+
+    // MARK: - Type scale
+
+    /// Seven steps at φ^⅓ ≈ 1.174 from an 11 pt body.
+    ///
+    /// Full φ is unusable for interface text — 11 → 17.8 → 28.8 skips every
+    /// size a dense UI needs — but a cube root of it gives a scale you can
+    /// build with. The ratio matters less than the count: this replaced
+    /// *fourteen* ad-hoc sizes, six of them separated by half a point, which
+    /// is a distinction nobody can see and everybody has to maintain.
+    ///
+    /// Always use a name. A raw `size: 12` is how the previous fourteen got in.
+    static let caption: CGFloat = 8          // uppercase labels, inline glyphs
+    static let small: CGFloat = 9.5          // secondary and tertiary text
+    static let body: CGFloat = 11            // the default
+    static let large: CGFloat = 13           // search field, preview body
+    static let title: CGFloat = 15           // preview heading
+    static let display: CGFloat = 21         // empty-state icon
+    static let hero: CGFloat = 40            // full-page placeholder icon
 
     // MARK: - Large preview
 
     /// The preview is for *reading*, so it's shaped like a page rather than
-    /// like the deck. Trapped inside the 245 pt strip it could only ever be a
+    /// like the deck. Trapped inside the deck's strip it could only ever be a
     /// letterbox, which is why it gets its own window.
-    static let previewRatio: CGFloat = 1.618        // height ÷ width
     static let previewMinHeight: CGFloat = 320
     static let previewMaxHeight: CGFloat = 760
 
@@ -123,7 +157,7 @@ enum Theme {
     static func previewSize(inScreen visible: CGRect) -> CGSize {
         let band = visible.height - screenInset * 2 - deckHeight - sectionGap
         let height = min(previewMaxHeight, max(previewMinHeight, band))
-        return CGSize(width: (height / previewRatio).rounded(), height: height.rounded())
+        return CGSize(width: (height / phi).rounded(), height: height.rounded())
     }
 
     // MARK: - Colour
@@ -236,7 +270,7 @@ struct KeyCap: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 10, weight: .medium, design: .rounded))
+            .font(.system(size: Theme.small, weight: .medium, design: .rounded))
             .padding(.horizontal, Theme.space15)
             .padding(.vertical, Theme.half)
             .background(

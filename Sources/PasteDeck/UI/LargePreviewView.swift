@@ -45,7 +45,7 @@ struct LargePreviewView: View {
                 Image(nsImage: icon).resizable().frame(width: 18, height: 18)
             }
             Text(item.title)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: Theme.title, weight: .semibold))
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: Theme.space2)
@@ -60,19 +60,19 @@ struct LargePreviewView: View {
         if isEditing {
             HStack(spacing: Theme.space1) {
                 KeyCap(text: "⌘↩")
-                Text("save").font(.system(size: 10)).foregroundStyle(.tertiary)
+                Text("save").font(.system(size: Theme.small)).foregroundStyle(.tertiary)
                 KeyCap(text: "⎋")
-                Text("discard").font(.system(size: 10)).foregroundStyle(.tertiary)
+                Text("discard").font(.system(size: Theme.small)).foregroundStyle(.tertiary)
             }
             .fixedSize()
         } else {
             HStack(spacing: Theme.space1) {
                 if item.kind.isEditable {
                     KeyCap(text: "⌘E")
-                    Text("edit").font(.system(size: 10)).foregroundStyle(.tertiary)
+                    Text("edit").font(.system(size: Theme.small)).foregroundStyle(.tertiary)
                 }
                 KeyCap(text: "space")
-                Text("close").font(.system(size: 10)).foregroundStyle(.tertiary)
+                Text("close").font(.system(size: Theme.small)).foregroundStyle(.tertiary)
             }
             .fixedSize()
         }
@@ -105,7 +105,7 @@ struct LargePreviewView: View {
                 set: { model.previewDraft = $0 }
             )
         )
-        .font(.system(size: 12, design: item.kind == .code ? .monospaced : .default))
+        .font(.system(size: Theme.large, design: item.kind == .code ? .monospaced : .default))
         .scrollContentBackground(.hidden)
         .focused($editorFocused)
         .padding(Theme.space1)
@@ -140,7 +140,7 @@ struct LargePreviewView: View {
                             Image(nsImage: NSWorkspace.shared.icon(forFile: path))
                                 .resizable().frame(width: 16, height: 16)
                             Text(path)
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.system(size: Theme.body, design: .monospaced))
                                 .textSelection(.enabled)
                         }
                     }
@@ -150,7 +150,7 @@ struct LargePreviewView: View {
         default:
             ScrollView {
                 Text(fullText ?? item.preview)
-                    .font(.system(size: 12, design: item.kind == .code ? .monospaced : .default))
+                    .font(.system(size: Theme.large, design: item.kind == .code ? .monospaced : .default))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -159,7 +159,7 @@ struct LargePreviewView: View {
 
     private var placeholder: some View {
         Image(systemName: item.kind.symbolName)
-            .font(.system(size: 40, weight: .light))
+            .font(.system(size: Theme.hero, weight: .light))
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -178,10 +178,10 @@ struct LargePreviewView: View {
             ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(pair.0.uppercased())
-                        .font(.system(size: 8, weight: .semibold))
+                        .font(.system(size: Theme.caption, weight: .semibold))
                         .foregroundStyle(.tertiary)
                     Text(pair.1)
-                        .font(.system(size: 11))
+                        .font(.system(size: Theme.body))
                         .lineLimit(2)
                         .truncationMode(.middle)
                 }

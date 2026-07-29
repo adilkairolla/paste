@@ -80,10 +80,10 @@ struct PromptEditorView: View {
         VStack(alignment: .leading, spacing: Theme.space3) {
             TextField("Title (optional)", text: $title)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: Theme.large, weight: .medium))
 
             TextEditor(text: $text)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.system(size: Theme.large, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .padding(Theme.space2)
                 .background(
@@ -132,12 +132,12 @@ struct PromptEditorView: View {
         let variables = template.variables
         HStack(alignment: .top, spacing: Theme.space2) {
             Image(systemName: variables.isEmpty ? "info.circle" : "sparkles")
-                .font(.system(size: 11))
+                .font(.system(size: Theme.body))
                 .foregroundStyle(variables.isEmpty ? Color.secondary : Color.indigo)
 
             if variables.isEmpty {
                 Text("Wrap a word in double braces to make it a slot, like {{topic}}, and PasteDeck will ask for it before pasting. {{clipboard}} and {{stack}} fill themselves in.")
-                    .font(.system(size: 11))
+                    .font(.system(size: Theme.body))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -145,11 +145,11 @@ struct PromptEditorView: View {
                     ForEach(variables) { variable in
                         HStack(spacing: Theme.space1) {
                             Text("{{\(variable.name)}}")
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.system(size: Theme.body, design: .monospaced))
                                 .foregroundStyle(.indigo)
                             if let builtIn = variable.builtIn {
                                 Text("— filled automatically with \(builtIn.explanation)")
-                                    .font(.system(size: 10))
+                                    .font(.system(size: Theme.small))
                                     .foregroundStyle(.tertiary)
                             }
                         }
