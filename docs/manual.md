@@ -49,10 +49,11 @@ To start it automatically: **Settings ▸ General ▸ Start PasteDeck at login**
 | `⌘C` | Copy without pasting |
 | `⌘1`…`⌘9` | Paste the *n*-th clipping |
 | `⇧↩` | Add / remove the clipping from the stack |
-| `space` | Large preview with full metadata |
+| `space` | Open the clipping as a page, with full metadata (arrows keep paging) |
 | `⌘P` | Pin (pinned items are never pruned) |
 | `⌘⌫` | Delete the clipping |
-| `⇥` / `⇧⇥`, `↑` `↓` | Next / previous category |
+| `⇥` / `⇧⇥` | Next / previous category |
+| `↑` `↓` | Cycle search → categories → cards, wrapping (empty categories skip the cards) |
 | `⌘N` | New category |
 | `⌘⇧N` | New prompt |
 | `⌘E` | Edit the prompt, or save any clipping as one |
@@ -238,6 +239,15 @@ scripts/                   .app bundler, icon generator
   height and `Theme.deckHeight` adds them up (12 + 28 + 8 + 24 + 12 + 96 + 12 +
   1 + 52 = 245), so the hosting window can't crop a row or leave dead space.
   `design/layout-workbench.html` derives the same numbers from the same formula.
+- **The large preview is a second window.** The deck is a 245 pt strip along the
+  bottom of the screen, so anything drawn *inside* it is a letterbox however
+  it's laid out — the wrong shape for reading. The preview gets its own panel,
+  sized to the golden ratio and centred in the band above the deck. It never
+  becomes key, so the deck keeps the keyboard and space, escape and the arrows
+  work unchanged; the arrows page through clippings with it still open.
+- **Empty zones aren't reachable.** ↑ / ↓ cycle the search field, category bar
+  and card strip, but the strip drops out of the cycle when it's empty rather
+  than becoming a dead end that swallows the cursor and shows no ring anywhere.
 - **One colour means focus.** The accent ring marks whatever the arrows are
   steering — a card, a category chip, or the search field — and dims on the
   other two. Category tints say *which filter*; the accent says *where you are*.

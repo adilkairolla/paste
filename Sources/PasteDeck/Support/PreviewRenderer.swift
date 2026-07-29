@@ -31,8 +31,13 @@ enum PreviewRenderer {
             if model.items.count > 1 {
                 model.selectedItemID = model.items[1].id
             }
-            if CommandLine.arguments.contains("--large") {
-                model.selectedItemID = model.items.first { $0.kind == .image }?.id ?? model.selectedItemID
+            // `--large [kind]` — defaults to whatever is selected.
+            if let index = CommandLine.arguments.firstIndex(of: "--large") {
+                let wanted = CommandLine.arguments.dropFirst(index + 1).first
+                    .flatMap { ClipKind(rawValue: $0) }
+                if let wanted, let match = model.items.first(where: { $0.kind == wanted }) {
+                    model.selectedItemID = match.id
+                }
                 model.isPreviewingLarge = true
             }
             // `--zone categories|search|items` so focus states can be eyeballed
@@ -44,6 +49,13 @@ enum PreviewRenderer {
                 case "categories": model.focusZone = .categories
                 default: model.focusZone = .items
                 }
+            }
+
+            // `--search <text>` — mostly to render the no-matches state.
+            if let index = CommandLine.arguments.firstIndex(of: "--search"),
+               index + 1 < CommandLine.arguments.count {
+                model.searchText = CommandLine.arguments[index + 1]
+                model.reload(resetSelection: true)
             }
 
             // `--tab <id>` picks a filter tab, e.g. `--tab prompts`.
@@ -75,15 +87,30 @@ enum PreviewRenderer {
                 }
             }
 
+            // The large preview lives in its own window now, so it renders on
+            // its own too — at the page size the real panel would use.
+            var canvas = CGSize(width: width, height: height)
+            if model.isPreviewingLarge {
+                let page = Theme.previewSize(
+                    inScreen: NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+                )
+                canvas = CGSize(width: page.width + 48, height: page.height + 48)
+            }
+
             let view = ZStack {
                 Color(nsColor: .underPageBackgroundColor)
-                DeckView(model: model)
+                if model.isPreviewingLarge, let item = model.selectedItem {
+                    LargePreviewView(model: model, item: item)
+                        .padding(Theme.space3 * 2)
+                } else {
+                    DeckView(model: model)
+                }
             }
-            .frame(width: width, height: height)
+            .frame(width: canvas.width, height: canvas.height)
 
             // A real window, not `ImageRenderer`: lazy scroll content only
             // materialises once AppKit has laid the view out for a window.
-            let frame = NSRect(x: 0, y: 0, width: width, height: height)
+            let frame = NSRect(x: 0, y: 0, width: canvas.width, height: canvas.height)
             let window = NSWindow(
                 contentRect: frame,
                 styleMask: [.borderless],

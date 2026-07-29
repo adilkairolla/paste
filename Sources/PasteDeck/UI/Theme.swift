@@ -109,6 +109,23 @@ enum Theme {
             + detailHeight                                       // 52
     }                                                            // = 245
 
+    // MARK: - Large preview
+
+    /// The preview is for *reading*, so it's shaped like a page rather than
+    /// like the deck. Trapped inside the 245 pt strip it could only ever be a
+    /// letterbox, which is why it gets its own window.
+    static let previewRatio: CGFloat = 1.618        // height ÷ width
+    static let previewMinHeight: CGFloat = 320
+    static let previewMaxHeight: CGFloat = 760
+
+    /// Fills the band between the top of the screen and the top of the deck,
+    /// keeping the golden ratio and never overlapping the deck itself.
+    static func previewSize(inScreen visible: CGRect) -> CGSize {
+        let band = visible.height - screenInset * 2 - deckHeight - sectionGap
+        let height = min(previewMaxHeight, max(previewMinHeight, band))
+        return CGSize(width: (height / previewRatio).rounded(), height: height.rounded())
+    }
+
     // MARK: - Colour
 
     static func color(named name: String) -> Color {

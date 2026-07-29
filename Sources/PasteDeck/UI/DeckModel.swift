@@ -129,6 +129,15 @@ final class DeckModel: ObservableObject {
         } else if !preserveSelection || !items.contains(where: { $0.id == selectedItemID }) {
             selectedItemID = items.first?.id
         }
+
+        // Searching or switching filters can empty the strip out from under the
+        // cursor. Leaving focus on it would strand the arrows on nothing.
+        if items.isEmpty, focusZone == .items {
+            focusZone = .categories
+        }
+        if items.isEmpty, isPreviewingLarge {
+            isPreviewingLarge = false
+        }
     }
 
     private func scheduleReload() {
@@ -186,14 +195,20 @@ final class DeckModel: ObservableObject {
 
     // MARK: - Focus
 
-    /// ↑ / ↓ walk the three zones. Order is top-to-bottom on screen, so the
-    /// key direction matches what moves.
+    /// Zones the arrows can actually land on. An empty deck has no cards to
+    /// steer, so the card strip drops out rather than becoming a dead end that
+    /// swallows the cursor and shows no focus ring anywhere.
+    var reachableZones: [FocusZone] {
+        items.isEmpty ? [.search, .categories] : [.search, .categories, .items]
+    }
+
+    /// ↑ / ↓ walk the zones top-to-bottom, wrapping at both ends the same way
+    /// ← / → wrap through the category bar. On an empty category that means ↓
+    /// goes straight back to the search field.
     func moveFocus(by offset: Int) {
-        let order: [FocusZone] = [.search, .categories, .items]
-        guard let index = order.firstIndex(of: focusZone) else { return }
-        let next = min(max(index + offset, 0), order.count - 1)
-        guard next != index else { return }
-        focusZone = order[next]
+        let zones = reachableZones
+        let index = zones.firstIndex(of: focusZone) ?? 0
+        focusZone = zones[(index + offset + zones.count) % zones.count]
     }
 
     /// ← / → / ⇥ inside whichever zone is active.

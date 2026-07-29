@@ -2,8 +2,11 @@ import AppKit
 import PasteDeckCore
 import SwiftUI
 
-/// The Space-bar look: the selected clipping at full deck height, with the rest
-/// of its metadata spelled out.
+/// The Space-bar look: the selected clipping as a page, with the rest of its
+/// metadata spelled out underneath.
+///
+/// Shaped tall and narrow because the job is reading. It fills its own window
+/// (see ``PreviewWindowController``) rather than floating inside the deck.
 struct LargePreviewView: View {
     @ObservedObject var model: DeckModel
     let item: ClipItem
@@ -14,20 +17,17 @@ struct LargePreviewView: View {
             Hairline()
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            Hairline()
             metadataGrid
         }
-        // A floating sheet with its own shadow, not a box nested in the panel,
-        // so it takes the panel's radius rather than a derived inner one.
-        .padding(Theme.space3)
+        .padding(Theme.panelPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.thickMaterial)
         .clipShape(RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.14))
         )
-        .padding(.horizontal, Theme.space4 * 3)
-        .padding(.vertical, Theme.space3)
-        .shadow(color: .black.opacity(0.3), radius: 24, y: 8)
         .onTapGesture { model.isPreviewingLarge = false }
     }
 
@@ -96,8 +96,17 @@ struct LargePreviewView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Two columns rather than one long row: a page is too narrow to lay eight
+    /// label/value pairs side by side without shearing most of them off.
     private var metadataGrid: some View {
-        HStack(spacing: Theme.space4) {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: Theme.space3, alignment: .topLeading),
+                GridItem(.flexible(), spacing: Theme.space3, alignment: .topLeading),
+            ],
+            alignment: .leading,
+            spacing: Theme.space15
+        ) {
             ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(pair.0.uppercased())
@@ -105,9 +114,11 @@ struct LargePreviewView: View {
                         .foregroundStyle(.tertiary)
                     Text(pair.1)
                         .font(.system(size: 11))
+                        .lineLimit(2)
+                        .truncationMode(.middle)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer()
         }
     }
 

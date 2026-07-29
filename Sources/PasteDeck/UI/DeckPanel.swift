@@ -41,11 +41,13 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
     private var panel: DeckPanel?
     private var keyMonitor: Any?
     private var resignObserver: Any?
+    private let preview: PreviewWindowController
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
     init(model: DeckModel) {
         self.model = model
+        self.preview = PreviewWindowController(model: model)
         super.init()
         model.onDismiss = { [weak self] immediately in self?.hide(immediately: immediately) }
     }
@@ -77,6 +79,7 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
     func hide(immediately: Bool = false) {
         guard let panel, panel.isVisible else { return }
         removeKeyMonitor()
+        preview.teardown()
 
         if immediately {
             panel.orderOut(nil)
@@ -196,8 +199,9 @@ final class DeckWindowController: NSObject, NSWindowDelegate {
         }
 
         // Space opens the large preview, but only when the user isn't typing a
-        // search — otherwise they could never search for two words.
-        if event.keyCode == 49, model.searchText.isEmpty, !command {
+        // search — otherwise they could never search for two words. With
+        // nothing selected there's no page to show.
+        if event.keyCode == 49, model.searchText.isEmpty, !command, model.selectedItem != nil {
             withAnimation(.easeOut(duration: 0.12)) {
                 model.isPreviewingLarge.toggle()
             }

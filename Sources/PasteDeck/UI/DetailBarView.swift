@@ -152,10 +152,11 @@ struct DetailBarView: View {
     }
 
     /// Names the zone ↑↓ would move to, so the hint stays true as focus changes.
+    /// With nothing in the strip there are no items to promise.
     private var zoneHint: String {
         switch model.focusZone {
         case .search: return "categories"
-        case .categories: return "search / items"
+        case .categories: return model.items.isEmpty ? "search" : "search / items"
         case .items: return "categories"
         }
     }

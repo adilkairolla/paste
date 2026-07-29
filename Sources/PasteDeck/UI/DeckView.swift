@@ -25,7 +25,7 @@ struct DeckView: View {
             RoundedRectangle(cornerRadius: Theme.radiusPanel, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.12))
         )
-        .overlay { largePreview }
+        // The large preview is a window of its own — see PreviewWindowController.
         .overlay { promptSheet }
         .overlay(alignment: .top) { toast }
         .onChange(of: model.focusRequest) { searchFocused = true }
@@ -174,14 +174,6 @@ struct DeckView: View {
     }
 
     // MARK: Overlays
-
-    @ViewBuilder
-    private var largePreview: some View {
-        if model.isPreviewingLarge, let item = model.selectedItem {
-            LargePreviewView(model: model, item: item)
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
-        }
-    }
 
     @ViewBuilder
     private var promptSheet: some View {
